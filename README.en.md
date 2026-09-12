@@ -17,9 +17,9 @@ life-simulation heartbeat, long-term memory, and a two-layer extension system (c
 - **Two front-ends, one brain** — QQ (NoneBot2 + OneBot v11) and a GAL web client (HTTP + WebSocket; stage art, sprite diffs and TTS driven by the same signal)
 - **"Aliveness" pipeline** — life-simulation heartbeat, proactive outreach, calendar-style appointments, mood/relationship state, daily review and fact extraction
 - **Content packs `robot-pack-v1`** — seven pack types (card / voice / item / emotion / world / tool / gal), dual-root discovery, broken-pack isolation
-- **Skin packs `launcher-skin-v1`** — replace the entire launcher UI (manifest + pages + palette); GAL asset slots are overridable too
-- **Launcher** — one-click start/stop, dependency detection, pack management, log and status views; plus headless `-Mode status|deps|packs|logs` (**UI logic is script-verifiable**)
-- **Auditable** — ships with a consistency auditor (60+ checks: env drift, absolute paths, atomic writes, doc contracts, reference integrity, privacy leaks), each with positive/negative self-tests
+- **Skin packs `launcher-skin-v1`** — replace the entire launcher UI (manifest + pages + palette); GAL asset slots are overridable too, and a skin can **own whole views**: set `operaPage` and the top bar's *Operators* entry opens *your* page instead of the built-in one
+- **Launcher** — a persistent top bar (Home / Operators / Settings / Content packs / Runtime status / Log / Components / About + ▶ Start / ■ Stop / lamps) over a body that is either your skin page or a framework page; dependency detection, pack management, and headless `-Mode status|deps|packs|logs` (**UI logic is script-verifiable**)
+- **Auditable** — ships with a consistency auditor (67 verdict lines: env drift, absolute paths, atomic writes, doc contracts, reference integrity, UI element-id closure, privacy leaks), each with positive/negative self-tests
 
 ## Quick start
 

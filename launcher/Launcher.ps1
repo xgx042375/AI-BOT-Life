@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.85"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.86"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -287,6 +287,11 @@ function Test-Http($url) {
     try { Invoke-RestMethod $url -TimeoutSec 2 | Out-Null; return $true } catch { return $false }
 }
 $script:probeCache = @{}
+# WebView 导航状态（2026-09-12）：NavigationCompleted 的 args **不带 Uri**，回退导航要靠自己记；
+# navCanceled 用来区分"我们主动拦下的一次导航"（同样以 IsSuccess=false 回来）与真正的加载失败。
+$script:lastNavUri = ""
+$script:navCanceled = $false
+$script:navFailCount = 0
 function Probe($name, $scriptBlock) {
     $now = Get-Date
     if ($script:probeCache.ContainsKey($name) -and ($now - $script:probeCache[$name].t).TotalSeconds -lt 120) { return $script:probeCache[$name].v }
@@ -1808,6 +1813,20 @@ function Open-DepTarget($which) {
 # ---------- 页面切换（主页/干员/设置/日志/状态/内容包/关于） ----------
 # 2026-09-12 UI 改版：二级页集合由这里唯一决定（新增页必须同时改此处 + Set-NavActive 映射表）。
 $script:PAGES = @("PageCfg", "PageLog", "PageState", "PagePlugins", "PageAbout", "PageOperators", "PageDeps")
+function Ensure-SkinPageVisible {
+    # 2026-09-12 修复（用户实测："未启动时点 GAL → 网页未加载，主页键一直被盖住"）：
+    # **主页 = PageHome = WebView 本身**。若 WebView 停在皮肤页以外的地方（GAL 页、或加载失败后
+    # WebView2 自己的错误页），只把 WPF 那层切回 PageHome 是**没用的**——用户看到的仍是那张死页面，
+    # 表现就是"主页键按了没反应、被盖住"。所以切主页前必须确认 WebView 真的在皮肤页上，
+    # 不在就导航回去（皮肤入口 URL 由 Get-SkinEntryUrl 决定，换皮肤自动跟随）。
+    try {
+        if (-not $script:wv -or -not $script:wv.CoreWebView2) { return }
+        $src = $script:wv.Source
+        if ($src -and $src.Host -eq "app.local") { return }
+        WEBLOG ("HOME navback from " + $(if ($src) { $src.AbsoluteUri } else { "(null)" }))
+        $script:wv.CoreWebView2.Navigate((Get-SkinEntryUrl))
+    } catch { WEBLOG "HOME navback ERR: $($_.Exception.Message)" }
+}
 function Get-SkinOwnsOperaPage {
     # 活动皮肤是否**自带**干员页（manifest 的 operaPage 键，见 docs/皮肤包接口规范-v1.md §2）。
     # 取不到 manifest = 一律 false（→ 用框架原生页兜底），绝不因为"读不到"就当成"皮肤有"。
@@ -1829,6 +1848,8 @@ function Show-Page($page) {
         }
         $ph = $window.FindName("PageHome")
         if ($ph) { $ph.Visibility = "Visible" }
+        # 主页/皮肤视图的前提：WebView 得真在皮肤页上（否则就是"主页键被盖住"，见 Ensure-SkinPageVisible）
+        Ensure-SkinPageVisible
         Push-WebPage $page
         # 导航高亮：`opera` 是"皮肤自己的视图"，而它在皮肤里就是「干员」这个一级页——
         # 皮肤声明了 operaPage 时高亮「干员」，否则（如 generic 的滚动区）仍算主页。
@@ -2397,6 +2418,18 @@ function Init-WebView {
                     $core.add_NavigationStarting({ param($s5, $e5)
                         try {
                             $uri = [string]$e5.Uri
+                            $script:lastNavUri = $uri
+                            # bot 未启动时导航到它提供的页面（GAL 页）是**必然失败**的一次跳转：
+                            # 拦下来 + 给可执行提示，用户就停在自己的主页上，不用去点那个回不来的错误页。
+                            # 这里用 Test-TcpFast 直连（不读 120s 的探测缓存）——判据必须反映"此刻"，
+                            # 否则刚点完「▶ 启动」的用户会被缓存里的旧结论拦住（那是新的坑）。
+                            if ($uri -match "^(?i:https?)://(?:127\.0\.0\.1|localhost):8080/" -and -not (Test-TcpFast "127.0.0.1" 8080)) {
+                                $e5.Cancel = $true
+                                $script:navCanceled = $true
+                                WEBLOG ("GAL 导航已拦下（bot 未启动）：" + $uri)
+                                Show-Msg "机器人未启动：GAL 页要先让 bot 跑起来（顶栏「▶ 启动」，约 30-60 秒）"
+                                return
+                            }
                             if ($uri -match "[?&]cmd=([a-z]+)") {
                                 $cm = $Matches[1]
                                 $dv = ""
@@ -2407,7 +2440,28 @@ function Init-WebView {
                     })
                     try {
                     } catch {}                    try { $core.Navigate((Get-SkinEntryUrl)); WEBLOG ("S9 nav called skin=" + (Split-Path (Get-SkinDir) -Leaf)) } catch { WEBLOG "S9 NAV ERR: $($_.Exception.Message)" }
-                    $core.add_NavigationCompleted({ param($s2, $e2) WEBLOG ("S10 nav completed ok=" + $e2.IsSuccess) })
+                    $core.add_NavigationCompleted({ param($s2, $e2)
+                        WEBLOG ("S10 nav completed ok=" + $e2.IsSuccess)
+                        try {
+                            # 主动拦下的一次导航（bot 未启动）不算失败：`OperationCanceled` 也会
+                            # 以 IsSuccess=false 回来，不区分就会把用户刚停在的主页又刷一遍。
+                            if ($script:navCanceled) { $script:navCanceled = $false; return }
+                            if ($e2.IsSuccess) { $script:navFailCount = 0; return }
+                            # 加载失败 → 回到皮肤入口。失败页是**死角**：它不走 state.json、也不认主页按钮，
+                            # 用户会卡在那儿（"主页键被盖住"就是这么来的）。
+                            # 回退目标就是皮肤入口，所以对入口自身的失败**不再重试**（否则 Navigate→失败→
+                            # Navigate…… 无限循环）；连续失败 3 次也停手，改为把话说明白。
+                            $bad = "$script:lastNavUri"
+                            $entry = (Get-SkinEntryUrl)
+                            if ($bad -and $bad -notlike "*$entry*" -and $script:navFailCount -lt 3) {
+                                $script:navFailCount = $script:navFailCount + 1
+                                Show-Msg "页面加载失败，已返回启动器主页：$bad"
+                                try { $s2.Navigate($entry) } catch {}
+                            } else {
+                                Show-Msg "页面加载失败：$bad（启动器主页也打不开——检查 launcher\web 是否完整）"
+                            }
+                        } catch {}
+                    })
                     $core.add_DocumentTitleChanged({ param($s4, $e4) try { [System.IO.File]::AppendAllText("$script:logDir\web_title.log", $e4.NewDocumentTitle + "`n") } catch {} })
                     $core.add_SourceChanged({ param($s3, $e3)
                         try {

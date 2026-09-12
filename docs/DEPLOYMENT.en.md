@@ -189,7 +189,12 @@ This framework **writes no registry keys, no system directories, and installs no
 | Port 8080 unavailable | Port in use: `netstat -ano \| findstr :8080` |
 | Engine won't start | `data\llama-server.err.log`; GPU memory taken; model file present under `data\models\` |
 | Launcher shows a blank page | `launcher\webstep.log`; is the WebView2 runtime complete? |
+| Clicking **GAL** says "机器人未启动" (bot not started) | That is the launcher refusing to navigate on purpose: the GAL page is served by the bot, so it cannot load while port 8080 is closed. Press **▶ Start** first (30–60 s for the engine), then GAL works. If the WebView is ever left on a failed page, the top bar's **Home** navigates it back to the skin entry automatically |
+| Launcher says "deps matrix missing, cannot detect" | Should no longer happen since 3.9.81 — the launcher derives its own directory from where the exe/script sits, so it works both when you run the **root** `QQAI-Launcher.exe` and when you run `launcher\Launcher.ps1` in place. If you see it, check that `launcher\deps.json` ships next to the launcher |
 | No voice output | GPT-SoVITS directory and weight paths; `data\voice_mode.json` switch |
 | It remembers nothing | Does `data\memory.db` exist and is it non-empty? (Memory still works with the embedding lamp off — keyword mode) |
+
+> **Running headless**: `Launcher.ps1 -Mode status|deps|packs|logs` prints to the console without opening the window
+> (useful over SSH/CI). Note that output from `-Mode` is **invisible** when you launch the `-noConsole` GUI exe.
 
 A fuller troubleshooting table lives in `维护手册.md` §7.1 (*Chinese*).

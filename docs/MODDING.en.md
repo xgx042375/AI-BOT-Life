@@ -171,12 +171,45 @@ launcher/web/skins/<your-skin-name>/
 3. Reference assets via `https://app.local/...` (= `launcher/web/`) or paths relative to your skin directory;
    **`http://127.0.0.1:8080` is only for the GAL page and the bot API**.
 
+**Who owns what (the layering rule — read this before designing your pages)**
+
+The launcher window is: a **persistent top bar** (navigation: Home / Operators / Settings / Content packs /
+Runtime status / Log / Components / About — plus ▶ Start, ■ Stop, ✕ Exit, service lamps, clock) over a **body**
+that is either your **skin page** (a WebView showing your entry file) or a **framework page** (native).
+
+| Layer | Owns | Must not |
+|---|---|---|
+| Top bar + framework pages | navigation, global actions (start/stop/exit), and every framework-owned view (settings, packs, runtime status, log, components, about) | decide your look; **override a page you built** |
+| Your skin page | ambience and read-only status (portrait / scene / mood / plan / dialogue / lamps), **your own views**, and buttons that call the framework via `postMessage({cmd})` | duplicate the global actions (start/stop) — two entry points for one action drift apart; and don't ship two UIs for the same data |
+
+Two consequences you will actually hit:
+
+- **Your skin may own a view.** If you build your own operator roster, set `"operaPage": true` in `manifest.json`:
+  then the top bar's **Operators** entry (and `cmd:"operators"`) opens **your** view — the launcher pushes
+  `page:"opera"` and you render it. Without that flag the framework's native operator page is used instead.
+  Either way only **one** operator page is visible to the user.
+- **Home always comes back to your entry file.** The top bar's **Home** re-navigates the WebView to your
+  `manifest.entry` if it is showing something else (GAL page, or a failed load). Don't assume your page stays
+  resident for the whole session — keep state in `state.json` polling rather than in-page globals.
+
+**The GAL page needs a running bot.** `http://127.0.0.1:8080/gal` is served by the bot, so a GAL button on your
+skin can only work while the bot is up. The launcher **blocks** that navigation when port 8080 is closed and shows
+"机器人未启动 …" instead of letting the WebView land on an error page (a dead end: error pages don't poll
+`state.json` and don't respond to Home). You can add the same pre-check from your page — the `svc.bot` field in
+`state.json` tells you whether it is up:
+
+```js
+if (state.svc && state.svc.bot === false) { /* show "start the bot first" in your own UI */ return; }
+```
+
 **Optional but common**: `window.GAL_SKIN = { assets: {...} }` overrides GAL page assets (backgrounds, etc.).
 Note that keys from `/gal/content.json` (`quotesByCard` / `quoteFallback` / `spriteMap`, plus `stage` for stage packs)
-**arrive later and override** your values.
+**arrive later and override** your values — including `quoteFallback`, which is read from its own variable rather
+than from `ASSETS` (handled in `gal.js`; see the skin spec §7).
 
-> Full field table, command channel (`start` / `stop` / `setpersona` …) and virtual-host details:
-> `皮肤包接口规范-v1.md` (*Chinese*) and `接口文档.md` §4.
+> Full field table (including `operaPage`), the whole command channel (`start` / `stop` / `stopbot` / `exit` /
+> `opera` / `home` / `operators` / `cfg` / `plugins` / `log` / `state` / `deps` / `about` / `setpersona`),
+> the state.json fields and the layering section: `皮肤包接口规范-v1.md` (*Chinese*), plus `接口文档.md` §4.
 
 ---
 

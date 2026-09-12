@@ -64,8 +64,16 @@
 	bind('btn-exit', function () { window.showWebBlock('正在退出…'); send('exit'); });
 	/* GAL 页：必须 WebView2 原地导航（ark 样板同款 location.href）——window.open 会被 WebView2
 	 * 甩到系统默认浏览器（"独立外置"），且外置浏览器不解析 app.local 虚拟主机，GAL 页"返回启动器"随之失效。
-	 * ent 参数告知 gal.js 返回哪个皮肤入口（goLauncher 据此拼 app.local 地址）。 */
+	 * ent 参数告知 gal.js 返回哪个皮肤入口（goLauncher 据此拼 app.local 地址）。
+	 * 前置判据（2026-09-12 用户实测）：bot 没跑时 GAL 页**必然打不开**，跳过去只会得到一张
+	 * WebView2 的错误页（它不走 state.json、也不认主页键 → 用户卡在那儿）。所以先在本地拦一句，
+	 * 把"为什么打不开、怎么开"直接写在对话框里。框架侧另有一道 NavigationStarting 兜底（换皮肤也拦得住）。 */
 	bind('btn-gal', function () {
+		var st = window.__lastState || {};
+		if (st.svc && st.svc.bot === false) {
+			setText('dialog', '机器人未启动：GAL 页要先让 bot 跑起来（顶栏「▶ 启动」，约 30-60 秒）。');
+			return;
+		}
 		try { location.href = 'http://127.0.0.1:8080/gal?ent=generic'; } catch (e) { }
 	});
 
