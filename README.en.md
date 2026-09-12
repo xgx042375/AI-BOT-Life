@@ -3,6 +3,10 @@
 A **local-first** AI companion framework with a Windows launcher: QQ integration, a GAL web client,
 life-simulation heartbeat, long-term memory, and a two-layer extension system (content packs + skin packs).
 
+> **Don't want to clone?** Grab the **lazy bundle** from [**Releases**](../../releases)
+> (`qqai-lazybundle-framework-*.tar`, ~7.5 MB: unzip → run `安装.ps1` → edit `.env`), or just the launcher exe.
+> You only need **Python 3.13** plus **a model or an API key**.
+>
 > This repository contains the **framework only** — no models, no voice models, no third-party assets,
 > and no character content. You bring those yourself, or install them as content packs.
 > Adult-oriented content is **not shipped here**: the framework provides the capability and interfaces only.

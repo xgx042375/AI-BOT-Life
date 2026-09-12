@@ -3,6 +3,10 @@
 **本地运行**的 AI 陪伴机器人框架 + Windows 启动器：QQ 侧接入、GAL 网页端呈现、生活模拟与长期记忆、内容包 / 皮肤包双层扩展。
 
 > **English**: see [`README.en.md`](README.en.md)。
+>
+> **不想 clone？** 到 [**Releases**](../../releases) 下「懒人包」（`qqai-lazybundle-framework-*.tar`，约 7.5 MB：
+> 解压 → 跑 `安装.ps1` → 填 `.env` 即可），或单独下启动器 `QQAI-Launcher.exe`。收包人只需自备 **Python 3.13**
+> 与**一个模型或一个 API Key**。
 
 > **本项目是框架，不含模型、音色、第三方素材与任何角色内容**——那些由使用者自备或由内容包提供。
 > 成人向内容**不随本仓**：框架只提供能力与接口，内容以独立内容包形式安装（见 [`docs/接口文档.md`](docs/接口文档.md)）。
