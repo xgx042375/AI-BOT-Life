@@ -45,7 +45,7 @@ docs\         Documentation (contracts / how-to / operations / deployment / thir
 
 | Goal | Read |
 |---|---|
-| Build a content pack (character / voice / stage / world …) | [`docs/MOD开发指南.md`](docs/MOD开发指南.md) |
+| Build a content pack (character / voice / stage / world …) | [`docs/MODDING.en.md`](docs/MODDING.en.md) |
 | Stable contracts (pack format, GAL protocol, skin format, code hooks) | [`docs/接口文档.md`](docs/接口文档.md) |
 | Skin pack format and launcher interfaces (`state.json` / `postMessage` / manifest) | [`docs/皮肤包接口规范-v1.md`](docs/皮肤包接口规范-v1.md) |
 | Architecture and module map | [`docs/项目拆解.md`](docs/项目拆解.md) |
