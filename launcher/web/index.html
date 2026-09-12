@@ -6,9 +6,17 @@
 	<title>QQ AI 启动器 · 简洁控制台</title>
 	<!-- 通用默认主页（generic 皮肤样板）：零图片素材 / 零外部资源 / 零第三方 IP。
 	     调色板变量来自 skins/generic/palette.css（--bg/--fg/--accent/--muted）。
-	     与 PS 的通信契约见 docs/皮肤包接口规范-v1.md。 -->
+	     与 PS 的通信契约见 docs/皮肤包接口规范-v1.md。
+
+	     2026-09-12 分层去重（用户实测：顶部按钮与主页按钮重复、多出一个不一样的干员页）：
+	     本页**只做两件事**——① 只读总览（服务灯 + 生活状态 + 台词）；② 皮肤独有/框架没有的入口。
+	     不重复摆：启动/停止（顶栏 ▶ ■ 是一等公民）、设置/内容包/运行状态/日志/组件/关于（顶栏导航）、
+	     人设卡网格与"设为启动人设"（框架「干员」页是唯一数据面，含卡片图/详情/切换）。
+	     理由：同一个动作两处入口 → 状态会不同步（一边转圈一边还写着"启动"）；
+	     同一批数据两套界面 → 用户要学两遍。皮肤要展示人设只许**只读 + 跳转**框架页。
+	     皮肤作者请注意：这条是规范，不是本样板的个人偏好（规范 §8）。 -->
 	<link rel="stylesheet" href="skins/generic/palette.css">
-	<link rel="stylesheet" href="home.css?v=2">
+	<link rel="stylesheet" href="home.css?v=3">
 </head>
 <body>
 	<!-- 操作遮罩：显隐驱动 = PS ExecuteScriptAsync 直呼 window.showWebBlock/hideWebBlock + state.json 轮询 op.active -->
@@ -17,14 +25,6 @@
 			<div class="wb-core"><span class="wb-icon">⚠</span><span class="wb-text">正在执行操作…</span></div>
 		</div>
 	</div>
-
-	<header class="topbar">
-		<div class="brand">◈ QQ AI 启动器 <span class="brand-sub">简洁控制台</span></div>
-		<div class="top-actions">
-			<span id="clock" class="clock">--:--:--</span>
-			<button id="btn-gal" class="btn ghost" type="button">GAL 页</button>
-		</div>
-	</header>
 
 	<main>
 		<section id="sec-status" class="card">
@@ -49,52 +49,21 @@
 					<p id="dialog" class="dialog">等待指令…</p>
 				</div>
 			</div>
+			<p class="hint">只读总览：服务灯与生活状态每秒自动刷新。服务详情与心跳时间线见顶部「运行状态」页。</p>
 		</section>
 
-		<section id="sec-control" class="card">
-			<h2>控制</h2>
+		<section id="sec-entry" class="card">
+			<h2>入口</h2>
 			<div class="ctrl-row">
-				<button id="btn-start" class="btn primary" type="button">启动全部</button>
-				<button id="btn-stop" class="btn danger" type="button">停止全部</button>
-				<button id="btn-stopbot" class="btn" type="button">仅停机器人</button>
+				<button id="btn-ope" class="btn primary" type="button">干员一览</button>
+				<button id="btn-gal" class="btn" type="button">进入 GAL 页</button>
 				<button id="btn-exit" class="btn ghost" type="button">退出启动器</button>
 			</div>
-			<div class="ctrl-row">
-				<button id="btn-cfg" class="btn ghost" type="button">设置（皮肤/模型）</button>
-				<button id="btn-plugins" class="btn ghost" type="button">插件</button>
-				<button id="btn-log" class="btn ghost" type="button">日志</button>
-				<button id="btn-state" class="btn ghost" type="button">状态</button>
-			</div>
-			<p class="hint" id="ctrl-msg"></p>
-		</section>
-
-		<section id="sec-persona" class="card">
-			<h2>人设</h2>
-			<div id="card-grid" class="card-grid"></div>
-			<p class="hint" id="grid-hint" hidden>（暂无人设卡数据——等待启动器 state.json 提供）</p>
+			<p class="hint">启动 / 停止在窗口顶部工具栏；设置、内容包、干员、运行状态、日志、组件、关于见顶部导航。
+				框架已提供的一等公民操作，皮肤不再重复摆一份——同一个动作两处入口，状态迟早对不上。</p>
 		</section>
 	</main>
 
-	<footer class="foot">通用皮肤样板 · generic · launcher-skin-v1</footer>
-
-	<!-- 人设详情弹层 -->
-	<div id="detail-layer" hidden>
-		<div id="detail-box">
-			<button id="detail-close" class="btn ghost sm" type="button">✕</button>
-			<div class="detail-body">
-				<div class="detail-imgbox"><img id="detail-img" alt=""></div>
-				<div class="detail-info">
-					<div class="detail-uni" id="detail-uni"></div>
-					<div class="detail-name" id="detail-name"></div>
-					<div class="detail-meta"><span id="detail-stars" class="stars"></span><span id="detail-cls" class="cls-chip"></span></div>
-					<p id="detail-desc"></p>
-					<button id="detail-set" class="btn primary" type="button">设为启动人设</button>
-					<p class="hint" id="detail-msg"></p>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<script src="app.js?v=3"></script>
+	<script src="app.js?v=4"></script>
 </body>
 </html>

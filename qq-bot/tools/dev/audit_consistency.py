@@ -863,6 +863,65 @@ def _launcher_pages_selftest() -> str:
     return f"PASS（{len(_JP_SELFTEST_CASES)} 例：闭环/页面名拼错/映射缺键/映射值悬空/home 豁免/动态实参）"
 
 
+# ── J 项第三片：**皮肤网页的元素 id 闭包**（框架自带的 generic 样板这一对）──────────────
+# 为什么单独立一片：前两片管的是 WPF 侧（控件名 / 页面名，都靠 XAML 的 x:Name 事实），
+# 而框架**自带**的主页是 `launcher/web/index.html` + `launcher/web/app.js` 这一对：
+# 它没有 XAML、也不走 FindName——前两片都盖不到它，偏偏它是所有皮肤的参考实现。
+# 真实故障模式（2026-09-12 分层去重时亲手拆过一遍）：HTML 删掉某个按钮、
+# 而 app.js 仍旧 `$('btn-x').addEventListener(...)` → 顶层 TypeError →
+# **整个 IIFE 中断** → 后面的绑定与 1s 轮询全部不生效（页面看着"活着"，其实全死）。
+# 判三个方向，都是静默类：
+#   ① app.js 里当**字面量**用的 id（`$()` / `setText()` / `setLamp()` / `bind()` /
+#      `querySelector('#x')`）必须在 index.html 里存在——否则是"更新到空气里"；
+#   ② index.html 里 `id="btn-*"` 的按钮必须至少被 app.js 引用一次——
+#      否则是"点了没反应"（网页版的无处理器按钮，与第一片同名不同层）；
+#   ③ 非按钮 id 一律不判：布局/样式锚点合法地无人引用（`sec-status` 这类）。
+#      这是**刻意的边界**——按"宁可少判也不要噪音"的既有口径，不做反向全量核对。
+_WEB_ID_CALL_RE = re.compile(r"""(?:\$|setText|setLamp|bind)\(\s*['"]([A-Za-z0-9_-]+)['"]""")
+_WEB_SEL_ID_RE = re.compile(r"""querySelector\(\s*['"]#([A-Za-z0-9_-]+)""")
+_WEB_HTML_ID_RE = re.compile(r'id="([^"]+)"')
+
+
+def _web_ids_grade(js: str, html: str) -> dict:
+    """纯函数：app.js + index.html 的元素 id 闭包（自检直接喂样本）。"""
+    declared = set(_WEB_HTML_ID_RE.findall(html))
+    used = set(_WEB_ID_CALL_RE.findall(js)) | set(_WEB_SEL_ID_RE.findall(js))
+    btns = {i for i in declared if i.startswith("btn-")}
+    return {"declared": sorted(declared), "used": sorted(used),
+            "missing": sorted(used - declared),   # js 用了、html 没有
+            "dead_btn": sorted(btns - used)}      # btn-* 没人绑
+
+
+_WEB_SELFTEST_CASES = (
+    # (期望 missing 数, 期望 dead_btn 数, js 源码, html 源码)
+    # 闭环：绑定 + setText 两处都在
+    (0, 0, "bind('btn-ok', f); setText('life-scene', v);",
+     '<i id="btn-ok"></i><b id="life-scene"></b>'),
+    # HTML 里没有这个 id、JS 还绑它 → 死引用（顶层 TypeError 的来源）
+    (1, 0, "$('btn-gone').addEventListener('click', f);", '<b id="life-scene"></b>'),
+    # 按钮存在但没人绑 → 点了没反应
+    (0, 1, "$('life-scene');", '<i id="btn-orphan"></i><b id="life-scene"></b>'),
+    # 非按钮 id 无人引用 → 合法（布局锚点），不许报噪声
+    (0, 0, "$('sec-status');", '<i id="sec-status"></i>'),
+    # setLamp 与 querySelector('#id') 两种取法都要算进 used
+    (1, 0, "setLamp('lamp-x', true); document.querySelector('#wb-text');", '<i id="lamp-x"></i>'),
+)
+
+
+def _web_ids_selftest() -> str:
+    bad = []
+    for want_m, want_d, js, html in _WEB_SELFTEST_CASES:
+        g = _web_ids_grade(js, html)
+        if len(g["missing"]) != want_m:
+            bad.append(f"缺失 {want_m}→{g['missing']}")
+        if len(g["dead_btn"]) != want_d:
+            bad.append(f"死按钮 {want_d}→{g['dead_btn']}")
+    if bad:
+        return "FAIL: " + " | ".join(bad)
+    return (f"PASS（{len(_WEB_SELFTEST_CASES)} 例：闭环/HTML 缺 id/按钮无人绑/"
+            f"非按钮豁免/setLamp+querySelector）")
+
+
 def audit_launcher_refs() -> dict:
     """启动器引用完整性（见上方 J 项说明）。文件不存在时明确报错，不假装通过。"""
     p = ROBOT / "launcher" / "Launcher.ps1"
@@ -877,6 +936,17 @@ def audit_launcher_refs() -> dict:
     out = _launcher_refs_grade(src, m.group(1))
     out.update({f"pg_{k}": v for k, v in _launcher_pages_grade(src, out.get("declared") or []).items()})
     out["pages_selftest"] = _launcher_pages_selftest()
+    # J 第三片：框架自带主页（generic 样板）的网页元素 id 闭包。文件缺失**当失败**，
+    # 不能因为"读不到 → 两个集合都空 → missing 0/dead 0"就假装通过（取空当失败）。
+    _wjs = _read(ROBOT / "launcher" / "web" / "app.js")
+    _wht = _read(ROBOT / "launcher" / "web" / "index.html")
+    out["web_selftest"] = _web_ids_selftest()
+    if not _wjs.strip() or not _wht.strip():
+        out["web_error"] = ("读不到 launcher/web/app.js 或 index.html——"
+                            "框架自带样板，两份都必须在（否则本片静默通过）")
+    else:
+        out.update({f"web_{k}": v for k, v in _web_ids_grade(_wjs, _wht).items()})
+        out["web_error"] = ""
     out["error"] = ""
     out["selftest"] = _launcher_refs_selftest()
     return out
@@ -2135,7 +2205,7 @@ def main() -> int:
 
     print("=" * 68)
     _w = report["writes"]
-    print(f"C. 绕过 core.atomics 的写盘")
+    print("C. 绕过 core.atomics 的写盘")
     print(f"   {'✅' if not _w['danger'] else '❌'} 危险（状态文件裸写）：{len(_w['danger'])} 处")
     for h in _w["danger"]:
         print(f"      {h['file']}:{h['line']}  {h['src']}")
@@ -2304,6 +2374,26 @@ def main() -> int:
         print(f"        ❌ `$map` 指向未声明控件：{n}")
     _pst = _lc.get("pages_selftest", "—")
     print(f"   {'✅' if str(_pst).startswith('PASS') else '❌'} 页面闭包自检：{_pst}")
+    # J 第三片：框架自带主页（web/index.html + web/app.js）的元素 id 闭包
+    if _lc.get("web_error"):
+        print(f"   ❌ 皮肤网页闭包：{_lc['web_error']}")
+    else:
+        _wm = _lc.get("web_missing") or []
+        _wd = _lc.get("web_dead_btn") or []
+        print(f"   皮肤网页闭包（框架自带 generic 样板 web/index.html + app.js）："
+              f"声明 id {len(_lc.get('web_declared') or [])} 个 ｜ app.js 引用 "
+              f"{len(_lc.get('web_used') or [])} 个")
+        print(f"   {'✅' if not _wm else '❌'} app.js 引用的 id 都在 HTML 里"
+              f"（否则是往空气里更新状态）：{len(_wm)} 个缺失")
+        for n in _wm:
+            print(f"        ❌ HTML 里没有：{n}")
+        print(f"   {'✅' if not _wd else '❌'} HTML 的 btn-* 都有人绑"
+              f"（点了没反应；反向则是删除按钮后 JS 仍在绑 = 顶层抛错 = 整页绑定与轮询全死）："
+              f"{len(_wd)} 个无人绑定")
+        for n in _wd:
+            print(f"        ❌ 无人绑定：{n}")
+    _wst = _lc.get("web_selftest", "—")
+    print(f"   {'✅' if str(_wst).startswith('PASS') else '❌'} 皮肤网页闭包自检：{_wst}")
 
     print("=" * 68)
     print("K. 文档契约（docs/接口文档.md ⟷ 代码）：文档承诺的路由/字段必须真存在")

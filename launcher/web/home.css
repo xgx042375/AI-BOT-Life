@@ -15,25 +15,6 @@ html, body {
 
 a { color: var(--accent); text-decoration: none; }
 
-/* ---------- 顶栏 ---------- */
-.topbar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	height: 48px;
-	padding: 0 20px;
-	background: rgba(255, 255, 255, 0.03);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-	position: sticky;
-	top: 0;
-	z-index: 10;
-	backdrop-filter: blur(4px);
-}
-.brand { font-weight: 600; letter-spacing: 1px; }
-.brand-sub { color: var(--muted); font-size: 12px; margin-left: 8px; }
-.top-actions { display: flex; align-items: center; gap: 12px; }
-.clock { font-family: Consolas, monospace; font-size: 13px; color: var(--muted); }
-
 /* ---------- 主体卡片 ---------- */
 main {
 	max-width: 1080px;
@@ -128,100 +109,9 @@ main {
 .btn.sm { padding: 2px 10px; font-size: 12px; }
 .btn:disabled { opacity: 0.45; cursor: default; }
 
-/* ---------- 人设卡网格 ---------- */
-.card-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-	gap: 12px;
-}
-.pcard {
-	position: relative;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 8px;
-	overflow: hidden;
-	cursor: pointer;
-	background: #1a2028;
-	transition: border-color 0.15s, transform 0.15s;
-}
-.pcard:hover { border-color: var(--accent); transform: translateY(-2px); }
-.pcard img.bust {
-	display: block;
-	width: 100%;
-	aspect-ratio: 3 / 4;
-	object-fit: cover;
-	object-position: 50% 12%;
-}
-.pcard img.rar {
-	position: absolute;
-	top: 6px;
-	right: 6px;
-	width: 22px;
-	height: 22px;
-}
-.pcard .cls-chip-pos {
-	position: absolute;
-	top: 6px;
-	left: 6px;
-	font-size: 10px;
-	padding: 1px 7px;
-	background: rgba(10, 12, 14, 0.78);
-	border: 1px solid rgba(255, 255, 255, 0.18);
-	border-radius: 3px;
-}
-.pcard .pname {
-	display: block;
-	padding: 6px 8px;
-	font-size: 12px;
-	font-weight: 600;
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* ---------- 详情弹层 ---------- */
-#detail-layer {
-	position: fixed;
-	inset: 0;
-	z-index: 500;
-	background: rgba(8, 10, 13, 0.72);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 24px;
-}
-/* [hidden] 属性必须恒胜作者 display——上面的 #detail-layer{display:flex} 会覆盖 UA 默认的
- * [hidden]{display:none}，导致弹层从加载起常驻可见且为空、全屏遮罩挡死整页交互
- * （2026-09-11 用户实测阻塞，视觉复现后修复；本规则同时保护 #portrait/#grid-hint 的 hidden 起隐） */
+/* [hidden] 属性必须恒胜作者 display——#portrait{display:...} 之类的作者规则会覆盖 UA 默认的
+ * [hidden]{display:none}，导致元素明明标了 hidden 还占位可见（2026-09-11 用户实测阻塞后加的兜底）。 */
 [hidden] { display: none !important; }
-#detail-box {
-	position: relative;
-	width: min(820px, 94vw);
-	max-height: 88vh;
-	background: #151a21;
-	border: 1px solid rgba(255, 255, 255, 0.14);
-	border-radius: 12px;
-	padding: 22px;
-	overflow: auto;
-}
-#detail-close { position: absolute; top: 10px; right: 12px; }
-.detail-body { display: flex; gap: 20px; }
-.detail-imgbox { flex: none; width: 260px; }
-.detail-imgbox img {
-	width: 100%;
-	max-height: 60vh;
-	object-fit: contain;
-	object-position: 50% 0;
-	border-radius: 8px;
-}
-.detail-info { flex: 1; min-width: 0; }
-.detail-uni { font-family: Consolas, monospace; font-size: 11px; letter-spacing: 3px; color: var(--muted); }
-.detail-name { font-size: 26px; font-weight: 700; margin: 6px 0 8px; }
-.detail-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; }
-.cls-chip { font-size: 11px; padding: 1px 8px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 3px; color: var(--muted); }
-#detail-desc { font-size: 13px; color: #c4c9cf; margin: 0 0 16px; }
-#detail-msg { min-height: 18px; }
 
 /* ---------- 操作遮罩 + 警告横幅（契约：window.showWebBlock/hideWebBlock） ---------- */
 #web-blocker {
@@ -252,6 +142,3 @@ main {
 }
 #web-warnbar .wb-icon { color: #f7c948; font-size: 24px; font-weight: 700; line-height: 1; }
 #web-warnbar .wb-text { color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-align: center; }
-
-/* ---------- 页脚 ---------- */
-.foot { text-align: center; color: var(--muted); font-size: 11px; padding: 0 0 24px; }

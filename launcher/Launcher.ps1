@@ -11,18 +11,45 @@ param(
 $ErrorActionPreference = "Continue"
 # 2026-09-06：无控制台（GUI exe）时设置编码会抛"句柄无效"——安全化
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-# 2026-09-12 T7.3：$root 由脚本自身位置推导（本文件位于 <安装根>\launcher\），不再写死盘符；
-# 逐级回退：脚本目录父目录 → 若不含 launcher\Launcher.ps1 则退回字面量 → 最后仍回落 "E:\robot"。
-# 目的：换盘/换目录安装（Steam depot / 用户自选路径）时启动器不再指向不存在的 E:\robot。
-$script:launcherDir = $PSScriptRoot
-$root = "E:\robot"   # 推导失败时的回落（保持与历史行为一致）
+# 2026-09-12 T7.3：$root 由脚本自身位置推导（本文件位于 <安装根>\launcher\），不再写死盘符。
+# ★ 2026-09-12 热修十四（用户实测报障）：**exe 历史上有两份**（<安装根>\ 与 <安装根>\launcher\），
+#   而从**根目录那份**双击时 `$PSScriptRoot` = 安装根 → `launcherDir` 被当成安装根 →
+#   `Get-Deps` 去根目录找 `deps.json`（实际在 launcher\）→ 组件页显示"依赖矩阵缺失，无法检测"；
+#   同时 `$root` 只是**碰巧**被硬编码回落救回（换盘就废）。
+#   现在改为**按证据判两件事**：本目录下有没有 `launcher\deps.json`（有 → 本目录是安装根）、
+#   或本目录自己有没有 `deps.json`/`Launcher.ps1`（有 → 本目录是 launcher 目录）。
+$script:appDir = $PSScriptRoot
+if (-not $script:appDir) {
+    # ps2exe 打包后 $PSScriptRoot 理论上可用，但实测环境有差异 —— 用当前进程的 exe 路径兜底
+    try { $script:appDir = Split-Path -Parent ([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) } catch {}
+}
+$script:launcherDir = $script:appDir
+$root = $null
 try {
-    if ($script:launcherDir) {
-        $up = Split-Path -Parent $script:launcherDir
-        # 判据：父目录下确实存在 data / qq-bot（本机布局）或本目录就是 launcher 目录
-        if ($up -and ((Test-Path (Join-Path $up "qq-bot")) -or (Test-Path (Join-Path $up "data")) -or ((Split-Path -Leaf $script:launcherDir) -eq "launcher"))) { $root = $up }
+    if (Test-Path (Join-Path $script:appDir "launcher\deps.json")) {
+        # 情形 A：exe 在安装根 → launcher 子目录才是启动器目录
+        $root = $script:appDir
+        $script:launcherDir = Join-Path $script:appDir "launcher"
+    } elseif ((Test-Path (Join-Path $script:appDir "deps.json")) -or (Test-Path (Join-Path $script:appDir "Launcher.ps1"))) {
+        # 情形 B：脚本/ exe 就在 launcher 目录里 → 父目录是安装根
+        $script:launcherDir = $script:appDir
+        $root = Split-Path -Parent $script:appDir
     }
 } catch {}
+# 兜底链：判不出来或判错（父目录没有 qq-bot/data）时，逐级试到"看起来像安装根"的那个
+if (-not $root -or -not ((Test-Path (Join-Path $root "qq-bot")) -or (Test-Path (Join-Path $root "data")) -or (Test-Path (Join-Path $root "start.bat")))) {
+    foreach ($cand in @($script:appDir, (Split-Path -Parent $script:appDir), (Split-Path -Parent (Split-Path -Parent $script:appDir)))) {
+        if ($cand -and ((Test-Path (Join-Path $cand "qq-bot")) -or (Test-Path (Join-Path $cand "start.bat")))) {
+            $root = $cand
+            if (-not (Test-Path (Join-Path $script:launcherDir "deps.json"))) {
+                $ld = Join-Path $cand "launcher"
+                if (Test-Path (Join-Path $ld "deps.json")) { $script:launcherDir = $ld }
+            }
+            break
+        }
+    }
+}
+if (-not $root) { $root = $script:appDir }   # 最后仍判不出：用自身目录（至少日志能落盘）
 $script:logDir = if ($script:launcherDir -and (Test-Path $script:launcherDir)) { $script:launcherDir } else { "$root\launcher" }
 trap {
     try { [System.IO.File]::AppendAllText("$script:logDir\boot_err.log", ($_ | Out-String) + "`n---`n") } catch {}
@@ -40,9 +67,9 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.80"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.84"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
-$script:SOURCE_URL       = ""         # ← 待填：本仓 GitHub 地址（全开源已定，填 URL 即可；空则关于页显示"（未设置）"）
+$script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 
@@ -1208,6 +1235,10 @@ function Get-OwnerPersona {
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><Rectangle x:Name="dotEmbed2" Width="8" Height="8" Fill="#4A515B" VerticalAlignment="Center"/><TextBlock x:Name="txtEmbed2" FontSize="11" Foreground="#A9B0BA" Margin="8,0,0,0"/></StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><Rectangle x:Name="dotNap2" Width="8" Height="8" Fill="#4A515B" VerticalAlignment="Center"/><TextBlock x:Name="txtNap2" FontSize="11" Foreground="#A9B0BA" Margin="8,0,0,0"/></StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><Rectangle x:Name="dotBot2" Width="8" Height="8" Fill="#4A515B" VerticalAlignment="Center"/><TextBlock x:Name="txtBot2" FontSize="11" Foreground="#A9B0BA" Margin="8,0,0,0"/></StackPanel>
+                <!-- 2026-09-12 分层去重：原先「仅停机器人」只存在于皮肤网页（cmd=stopbot），
+                     而顶栏只有"启动全部/停止全部"——按"功能不该由外观决定"的同一口径补进框架页。
+                     位置选在"服务状态"旁边：它本就是一次服务控制动作。 -->
+                <Button x:Name="BtnStopBotOnly" Content="仅停机器人（LLM 保持）" FontSize="11" Height="26" HorizontalAlignment="Left" Margin="0,12,0,0" Style="{StaticResource CutBtn}" Foreground="#A9B0BA"/>
               </StackPanel>
             </Border>
           </StackPanel>
@@ -2012,11 +2043,25 @@ function Refresh-Plugins {
         $script:packRows = @()
         $items = Get-InstalledItems
         $n = @{ "内容包" = 0; "舞台包" = 0; "皮肤" = 0; "插件" = 0 }
+        # 每类"放哪里"的唯一出处：空组提示与全空提示共用（原先这段文案写死在下面的全空分支里，
+        # 于是"只有插件为空"时用户什么都看不到——2026-09-12 用户实测："之前说改为插件的也没看到"）。
+        $hint = @{
+            "内容包" = "把含 pack.json 的目录放进 data\packs\（或点上方「从文件夹/zip 安装」）"
+            "舞台包" = "同上，pack.json 的 type 写 gal（给背景 bg/ 与差分 sprites/diff/）"
+            "皮肤"   = "把皮肤目录放进 launcher\web\skins\（含 manifest.json）"
+            "插件"   = "把代码插件放进 data\plugins\（子包目录或单个 .py；重启 bot 生效）"
+        }
         foreach ($k in @("内容包", "舞台包", "皮肤", "插件")) {
             $grp = @($items | Where-Object { $_.kind -eq $k })
-            if (-not $grp.Count) { continue }
+            # 空组不再整组消失：**类别消失**会让用户以为"这个功能不存在"（真发生过）。
+            # 分组标题恒在，空组下面挂一行"放哪里"——比让人猜准得多。
             $lst.Items.Add("── $k（$($grp.Count)） ─────────────────────────────") | Out-Null
             $script:packRows += $null
+            if (-not $grp.Count) {
+                $lst.Items.Add("  （暂无——" + $hint[$k] + "）") | Out-Null
+                $script:packRows += $null
+                continue
+            }
             foreach ($p in $grp) {
                 # 行内只留能扫读的：名字 + 类型 + 标题。作者/许可/来源移到右栏——
                 # 原先一行用 {0,-22} **按字符数**补空格对齐，中文标题必然错位（视觉 bug）。
@@ -2027,19 +2072,14 @@ function Refresh-Plugins {
             }
         }
         if (-not @($items).Count) {
-            $lst.Items.Add("（未发现任何已装件）") | Out-Null
-            $script:packRows += $null
-            $lst.Items.Add("  内容包 → 把含 pack.json 的目录放进 data\packs\（或点上方「从文件夹/zip 安装」）") | Out-Null
-            $script:packRows += $null
-            $lst.Items.Add("  舞台包 → 同上，pack.json 的 type 写 gal（给背景 bg/ 与差分 sprites/diff/）") | Out-Null
-            $script:packRows += $null
-            $lst.Items.Add("  皮肤   → 把皮肤目录放进 launcher\web\skins\（含 manifest.json）") | Out-Null
-            $script:packRows += $null
-            $lst.Items.Add("  插件   → 把代码插件放进 data\plugins\（子包或单 .py；重启 bot 生效）") | Out-Null
+            # 全空时不再重复列四行"放哪里"——那四段文案已经各自挂在四组标题下面了（$hint 唯一出处）。
+            $lst.Items.Add("（未发现任何已装件——四类各自的「放哪里」见下面各组的提示行）") | Out-Null
             $script:packRows += $null
         }
         $msg = $window.FindName("txtPackMsg")
-        if ($msg -and @($items).Count) { $msg.Text = "内容包 $($n['内容包']) · 舞台包 $($n['舞台包']) · 皮肤 $($n['皮肤']) · 插件 $($n['插件'])" }
+        # 汇总行**恒显示四类计数**（含 0）：原先只有"至少有 1 件"才显示汇总，
+        # 于是"插件 0 件"这种信息在界面上完全不存在，用户只能看到少了一组（2026-09-12 用户实测）。
+        if ($msg) { $msg.Text = "内容包 $($n['内容包']) · 舞台包 $($n['舞台包']) · 皮肤 $($n['皮肤']) · 插件 $($n['插件'])" }
         # 自动选中第一个**真条目**（可能是第 2 行：第 1 行是分组标题），右栏立刻有内容——
         # 否则"点一下才显示"会让空右栏看起来像坏了。
         $first = -1
@@ -2184,11 +2224,19 @@ function Push-Web {
         $c = try { (Get-Cards) | Where-Object { $_.key -eq $op } | Select-Object -First 1 } catch { $null }
         $pu = ""
         if ($c) { $pf = try { Get-CardImageHome $c.key } catch { "" }; if ($pf) { $pu = "https://cards.local/" + ([System.IO.Path]::GetFileName($pf)) } }
+        # 主人昵称（皮肤规范 §3 契约：`name` = **主人**昵称，"运行时取 bot 配置"，示例值 `@owner`）。
+        # 2026-09-12 修：原先硬编码 "@晓咕咕Max"——那是**框架作者**的昵称，两处错：
+        #   ① 语义错：皮肤拿它当"用户自己的显示名"，等于把作者署名当用户身份（同 9/12 brain 那处
+        #      "拿主人昵称称呼第三方"的错，是同一类）；
+        #   ② 外泄：每个用户的 state.json 里都带着作者的昵称（审计 O 项只列不判的那类）。
+        # .env 的 OWNER_NICKNAME 是既有开关（.env.example 第 15 行有占位）；缺省回落中性值"主人"。
+        $ownerName = "$(Get-EnvValue 'OWNER_NICKNAME')"
+        if (-not $ownerName) { $ownerName = "主人" }
         $d = @{
             time    = (Get-Date).ToString("yyyy/MM/dd HH:mm")
             dialog  = $(try { ($ls.doing -replace "【.*$", "").Trim() } catch { "等待指令…" })
             scene   = $(try { $ls.scene } catch { "-" })
-            name    = "@晓咕咕Max"
+            name    = $ownerName
             star    = $(if ($c) { try { New-StarText $c.star } catch { "6★" } } else { "6★" })
             idtext  = $(if ($c) { "$($c.name) · $($c.uni)" } else { "博士 · 本地实例" })
             portrait = $pu
@@ -2232,6 +2280,16 @@ function Handle-WebCmd($cmd, $data) {
             Start-StepMachine (New-StopSteps) "⚠（正在停止全部…）" | Out-Null
         }
         elseif ($cmd -eq "opera")   { Show-Page "opera" }
+        # 2026-09-12 分层去重（用户实测："新增了一个不一样的干员页面"）：补上 `operators`。
+        # 根因：原先皮肤**没有任何通道**能打开框架「干员」页——`opera` 的语义是"回主页、让你自己画人设一览"。
+        # 于是每个皮肤都被迫自绘第二个人设面（generic 画卡片网格+详情弹层、arknights 画 view-opera），
+        # 与框架 PageOperators（卡片图/详情/设为启动人设）并存 = 同一批数据两套界面、两个"干员页"。
+        # 分层定案：**数据面只保留框架这一份**，皮肤只许只读展示 + 用本命令跳转（皮肤规范 §9）。
+        # `deps`/`about` 一并开：顶栏能点的二级页里原先只有 cfg/plugins/log/state 有 cmd，
+        # 皮肤发 operators/deps/about 三个名字是**静默无效**——`遗留任务.md` A10 记的正是这处不对称。
+        elseif ($cmd -eq "operators") { Show-Page "operators" }
+        elseif ($cmd -eq "deps")    { Show-Page "deps" }
+        elseif ($cmd -eq "about")   { Show-Page "about" }
         elseif ($cmd -eq "cfg")     { Show-Page "cfg" }
         elseif ($cmd -eq "plugins") { Show-Page "plugins" }
         elseif ($cmd -eq "log")     { Show-Page "log" }
@@ -2397,6 +2455,9 @@ BindClick "BtnTopStop" ({
         Show-Msg "正在停止全部（含 LLM，显存释放）…"
     }
 })
+# 仅停机器人（2026-09-12 分层去重）：复用 Invoke-StopBotOnly（cmdline+端口双兜底，与 cmd=stopbot 同口径）。
+# 补它的理由：这条能力原先只能由皮肤网页发出来——换个皮肤就没了，正是顶栏那对按钮当初要解决的同一问题。
+BindClick "BtnStopBotOnly" ({ Show-Msg (Invoke-StopBotOnly) })
 BindClick "BtnSetPersona" ({
     if ($script:selectedCard) {
         if (Set-OwnerPersona $script:selectedCard) {

@@ -48,6 +48,13 @@ if (window.GAL_SKIN && window.GAL_SKIN.assets) { Object.assign(ASSETS, window.GA
 /* 兜底台词：同样由 /gal/content.json 的 quoteFallback 提供（data/quotes.json 的 fallback 段；
  * 内容包不供兜底——兜底是全局层）。空数组=该行整体不渲染（拉取失败时的稳定缺省）。 */
 var QUOTES_FALLBACK = [];
+/* 皮肤覆盖（2026-09-12 · 遗留任务 A10 落地）：上面那句 Object.assign 只覆盖 ASSETS，
+ * 而 quoteFallback 的读点是**模块变量**（rollQuote：`ASSETS.quotesByCard[键] || QUOTES_FALLBACK`），
+ * 所以皮肤写 GAL_SKIN.assets.quoteFallback 原先**静默无效**。这里单列一行采纳皮肤值；
+ * /gal/content.json 是异步后到，仍会覆盖它——与规范 §7 记的先后关系一致。 */
+if (window.GAL_SKIN && window.GAL_SKIN.assets && Array.isArray(window.GAL_SKIN.assets.quoteFallback)) {
+	QUOTES_FALLBACK = window.GAL_SKIN.assets.quoteFallback;
+}
 
 /* ============================== 连接地址 ============================== */
 var HTTP_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
@@ -1125,13 +1132,25 @@ function goLauncher(hash) {
 		var inWebview = (location.protocol === 'http:' || location.protocol === 'https:') &&
 			location.host === '127.0.0.1:8080';
 		if (!inWebview) { toast('请从启动器内使用'); return; }
-		/* 干员切换(#opera)携带 from=gal：返回键据此回 GAL 页（跨源 referrer 只剩 origin，不可判） */
+		/* 干员（#opera）：2026-09-12 分层去重——数据面只有框架「干员」页这一份（卡片图/详情/设为启动人设）。
+		 * 启动器内用 postMessage 直接开框架页（两皮肤同一条路，皮肤不必自绘第二套）；
+		 * 拿不到 chrome.webview（外部浏览器）时回落 URL 导航，行为与改造前一致。 */
+		if (hash === '#opera') {
+			try {
+				if (window.chrome && window.chrome.webview) {
+					window.chrome.webview.postMessage({ cmd: 'operators', data: '' });
+					return;
+				}
+			} catch (e) { }
+		}
 		/* ent 参数（2026-09-11）：启动器两个皮肤的 GAL 按钮分别带 ?ent=generic|arknights，
 		 * 返回时回到对应皮肤入口（ark 页内 ak-back 的 from=gal 语义不变）；无参回落 generic 根。 */
 		var m = location.search.match(/[?&]ent=([^&]+)/);
 		var base = 'https://app.local/' +
 			((m && decodeURIComponent(m[1]) === 'arknights') ? 'skins/arknights/index.html' : 'index.html');
 		var url = base + (hash || '');
+		/* 外链回落：皮肤侧 #opera 锚点（ark 保留 view-opera 视图仅为此路径）。
+		 * from=gal 不可省：皮肤页返回键据此回 GAL 页（跨源 referrer 只剩 origin，判不出来）。 */
 		if (hash === '#opera') url = base + '?from=gal#opera';
 		location.href = url;
 	} catch (e) {
