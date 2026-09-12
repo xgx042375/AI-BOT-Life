@@ -1,0 +1,12 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.voice",
+  "version": "1.0.0",
+  "type": "voice",
+  "title": "示例语音包（音色注册 · 零 IP · 不含权重）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "key": "example_teahouse",
+  "note": "随仓示例包：演示 robot-pack-v1 **语音包（type=voice）** 的最小结构——音色写在同目录的 voice.json 里，字段与合并纪律见 docs/接口文档.md §3.3。读取它的是 qq-bot/core/packs.py 的 voice_index()（card 包 voice.json + type=voice 包同构合并），再由 plugins/voice 的 apply_pack_merges() 以 setdefault 并进 VOICES（**内置音色永远优先**：同名键不覆盖，所以要用不撞车的 key）。\n\n· 本包**只有格式没有权重**：gpt/sovits/ref_dir 是三个绝对路径占位（写成框架 tools/ 下的虚构文件名），所以 plugins/voice 的 _active_voice() 用 os.path.exists() 检查时会判定该音色不可用，不会真的去拉起 TTS worker——这是刻意的：GPT-SoVITS 权重属 tools/（gitignored），公开发行只带格式与文档。把你的权重绝对路径替换进去，音色才会真的可用。\n· 相对路径是**硬错误**：gpt/sovits/ref_dir 任一写成相对路径 → 该音色条目整条被跳过 + warning（别用 'models/my.ckpt'，要写完整绝对路径）。\n· key 的取法：voice.json.key > card.key > 包名末段；这里显式写 example_teahouse。personas 是**人设显示名/卡名**映射（卡里没有语音包声明的 personas 名 = 无语音，不借用别卡音色）；emo_refs 的键用 9 类口径（战斗/高冷/讥讽/温柔/无语/娇嗔/疑问/纯H/傲娇），缺类自动回「默认」参考音。\n· 为什么 type=voice 的包还带 voice.json 而不是写在 pack.json 里：与卡包**同一份格式**（卡包内嵌 voice.json 走同一条加载路径），一个音色一份文件，复制粘贴零改名。\n· 做自己的包：复制本目录改名，改 pack.json 的 name、voice.json 的 key/name/personas 与三个绝对路径即可。"
+}

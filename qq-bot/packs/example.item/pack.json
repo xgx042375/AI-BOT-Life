@@ -1,0 +1,16 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.item",
+  "version": "1.0.0",
+  "type": "item",
+  "title": "示例道具包（道具目录 · 零 IP）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "items": [
+    { "name": "魔法茶杯", "label": "魔法茶杯", "note": "会自己续杯：杯底总留着七分满的热茶，被夸茶艺时还会微微发烫。", "ttl_min": 5 },
+    { "name": "星尘茶匙", "label": "星尘茶匙", "note": "搅动时落下一层细碎星光，照得见茶汤里没说完的话。" },
+    { "name": "暖手炉", "label": "旧铜暖手炉", "note": "暖到心里：掌心的温度会把紧绷的字句慢慢焐软。", "ttl_min": 30 }
+  ],
+  "note": "随仓示例包：演示 robot-pack-v1 **道具包（type=item）** 的最小结构——道具目录只写在 pack.json 的 items 段里，没有额外文件。字段（name/label/note/ttl_min）与校验口径见 docs/接口文档.md §3.4；读取它的加载器是 qq-bot/core/packs.py 的 items_index()（形状校验，全包合并），最终登记与呈现词由消费方 core/special.py 的 add_item_catalog() 决定（bot.py 启动时接线）。\n\n· 目录项 = 给**默认呈现**（label 展示名 / note 默认效果文案 / ttl_min 默认时效分钟），**不改变开放性**：目录外的道具照旧走开放集（【道具：名字】标记就能登记）；内置道具不受目录影响。\n· 不合格条目只是被消费方跳过、不报错，所以自己写的时候对着校验抄：name 消毒（去空白与【】：等结构符）后非空、label 非空且 ≤12 字、ttl_min 必须是 >0 的数字（ttl_min 缺省 = 这条道具无时效，「星尘茶匙」就是这种写法）。\n· 做自己的包：复制本目录改名，改 pack.json 的 name 与 items 即可（type=item 的包不需要 card.json，也不需要任何素材文件）。"
+}

@@ -23,16 +23,31 @@ life-simulation heartbeat, long-term memory, and a two-layer extension system (c
 
 ## Quick start
 
+**Pick an install path first** — both work; the only difference is how the launcher starts:
+
+| Path | What you get | How to launch |
+|---|---|---|
+| **Lazy bundle** (`qqai-lazybundle-*.tar` from [Releases](../../releases)) | framework + a **pre-built `QQAI-Launcher.exe`** + `安装.ps1` | unzip → run `安装.ps1` → double-click `launcher\Run.bat` |
+| **Clone this repo** (`git clone`) | source only — **no exe** (it is a build product and is not committed) | double-click `launcher\Run.bat` (**it falls back to `Launcher.ps1` automatically**), or build one with `launcher\build_exe.ps1` |
+
 ```
-1. Install Python 3.13 + dependencies (qq-bot/pyproject.toml), and an inference engine (llama.cpp) — or point it at an external API
-2. Copy qq-bot/.env.example → .env, set at least SUPERUSERS (your QQ number)
-3. Double-click launcher\QQAI-Launcher.exe — it tells you what's missing, what breaks without it, and where to get it
+1. Install Python 3.13 + dependencies (qq-bot/pyproject.toml) and a local inference engine (llama.cpp);
+   or skip the engine entirely and point the launcher at any OpenAI-compatible API (the model is optional)
+2. Copy qq-bot/.env.example → .env and set at least SUPERUSERS (your QQ number).
+   A persona works out of the box: the default is PERSONA=_starter (a neutral placeholder card shipped with the repo)
+3. Start the launcher → its "Components" page lists what is missing, what breaks without it, and where to get it
+4. Click ▶ Start in the top bar → the engine is ready in ~30-60 s → message your bot
 ```
 
-Details: [`docs/DEPLOYMENT.en.md`](docs/DEPLOYMENT.en.md) (install / upgrade / relocate / uninstall).
+> **Three things clone users should know**: ① `QQAI-Launcher.exe` is not in the repo (see the table above);
+> ② the **wrapper DLLs** for WebView2 (`launcher\*.dll`, four of them) *are* in the repo, but the **browser runtime
+> itself** (Evergreen, ~100 MB) is not — use the system one (usually already present on Win10/11; if it is missing,
+> install the Evergreen Runtime from Microsoft; rendering failures are logged to `launcher\webview2_error.log`);
+> ③ models, voice weights and NapCat are never shipped (licensing and size) — the "Components" page tells you where to get each one.
+
+Details: [`docs/DEPLOYMENT.en.md`](docs/DEPLOYMENT.en.md) (install / upgrade / relocate / uninstall + the feature→dependency matrix) and [`docs/MAINTENANCE.en.md`](docs/MAINTENANCE.en.md) (start/stop / logs / state / troubleshooting).
 The English set is now complete: [`docs/API.en.md`](docs/API.en.md) (contracts) ·
 [`docs/SKIN-SPEC-v1.en.md`](docs/SKIN-SPEC-v1.en.md) (skin packs, layering) ·
-[`docs/MAINTENANCE.en.md`](docs/MAINTENANCE.en.md) (operations & troubleshooting) ·
 [`docs/MODDING.en.md`](docs/MODDING.en.md) (build a mod) ·
 [`docs/ARCHITECTURE.en.md`](docs/ARCHITECTURE.en.md) (module map) ·
 [`CONTRIBUTING.en.md`](CONTRIBUTING.en.md).

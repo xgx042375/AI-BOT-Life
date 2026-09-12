@@ -3290,7 +3290,10 @@ try:
             os.environ.pop("PACKS_ENABLE_PY", None)
         else:
             os.environ["PACKS_ENABLE_PY"] = _env50
-    check("50 开env后可import", len(_mods50) == 1
+    # 2026-09-12：改成**按名判定**，不再数总数——夹具的 builtin 根是"随仓 packs 全量复制"（见 §50-0），
+    # 所以随仓每多一个 type=tool 的示例包，`len(_mods50)` 就 +1，计数断言会被无关变更打断。
+    # 这条和本节其它断言同一个纪律：**认名字，不认数量**（"以后再加示例包，断言自动跟着走"）。
+    check("50 开env后可import", any(getattr(m, "__name__", "") == "_pack_tool_smoke_tool" for m in _mods50)
           and (_user50 / "smoke.tool" / "imported.marker").is_file())
 finally:
     _pk50.USER_PACKS_DIR, _pk50.BUILTIN_PACKS_DIR = _orig_dirs50

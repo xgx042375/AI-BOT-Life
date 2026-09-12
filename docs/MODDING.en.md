@@ -72,6 +72,35 @@ cd qq-bot && .venv/Scripts/python.exe tools/export_cards.py     # appends into d
 **One pack can be several kinds at once**: a `type=card` pack may carry `quotes.json` / `voice.json` / `world.json` / `sprites/`.
 `type` only decides the **primary identity** (who provides fallbacks, who indexes you).
 
+### 1.1 Where content actually lives (and which launcher page shows it)
+
+| Content | Canonical location | Where you see it after installing |
+|---|---|---|
+| Character card (persona) | `qq-bot\data\personas\<name>.json` (local, **takes priority**) or a pack's `card.json` | The launcher's **Operators** page (local + pack cards merged); or `/人设 <name>` in a DM |
+| Voice `voice` | A content pack (`qq-bot\packs\` = shipped examples, `data\packs\` = what you install) | The launcher's **Content packs** page, tagged `⟨voice⟩` at the end of the row |
+| Item `item` / emotion `emotion` / world `world` / tool `tool` | Same | Same page, tagged `⟨item⟩` / `⟨emotion⟩` / `⟨world⟩` / `⟨tool⟩` |
+| Stage (backgrounds + variants) `gal` | Same (`type=gal`) | The **Stage packs** group on that page |
+| Skin (launcher look) | `launcher\web\skins\<name>\` (with `manifest.json`) | The **Skins** group; switch it in *Settings → Skin* |
+| Third-party **code** plugin | `data\plugins\` (a package directory or a single `.py`; restart the bot) | The **Plugins** group |
+| **Item / special-state copy** (not a pack!) | `data\special_content.json` (the **canonical root**, gitignored) — the state whitelist itself is in code | No page: it is the copy layer handed to the model, see API §6.5 |
+| What your instance has installed right now | —— | The four groups on the Content packs page, or headless `Launcher.ps1 -Mode packs` |
+
+> ⚠️ **Two misconceptions that bite everyone**:
+> ① The launcher page is called "Content packs" but groups by **what a thing gives you** (content packs / stage packs /
+> skins / plugins) — **not by `type`**. So `item` / `emotion` / `voice` / `world` / `tool` all sit in the
+> **content-pack** group, distinguished only by the `⟨type⟩` tag at the end of the row.
+> ② **Items and special states are not content packs**: the capability (the state whitelist, what `set_state` does)
+> lives in `core/special.py`, while the copy lives in `data\special_content.json`. A `type=item` pack defines
+> **items** (name / effect / duration); the two complement each other and do not overlap.
+
+### 1.2 Every type ships one minimal example you can copy
+
+`qq-bot\packs\` contains one minimal example per type, verified against the real pack loader:
+`example.sakura` (card), `example.voice`, `example.item`, `example.emotion`, `example.world`, `example.tool`,
+`example.stage` (gal) — all discovered with `root=builtin`. Copy the whole directory into `data\packs\`,
+rename it, and you have the smallest pack that actually runs.
+**Copy first, edit second** is far faster than writing a pack from the spec alone.
+
 ---
 
 ## 2. Three hard rules for content packs (**violating them never errors, but never works either**)
@@ -215,11 +244,25 @@ than from `ASSETS` (handled in `gal.js`; see the skin spec §7).
 
 ## 6. A world pack (`world`) — let characters "know" their world
 
-```json
-{ "spec": "robot-pack-v1", "type": "world", "name": "yourname.world", "version": "1.0.0",
-  "world": { "universe": "your-world",
-             "entries": [ { "text": "In this world…", "always": true, "priority": 0 } ] } }
+**Two files**: `pack.json` only declares identity; the setting text goes in `world.json` in the same directory
+(the **name matters** — the loader reads it by filename):
+
+```jsonc
+// <pack dir>/pack.json
+{ "spec": "robot-pack-v1", "type": "world", "name": "yourname.world", "version": "1.0.0" }
+
+// <pack dir>/world.json        <- the content lives here; universe / entries at the ROOT level
+{ "universe": "your-world",
+  "entries": [ { "text": "In this world…", "always": true, "priority": 0 } ] }
 ```
+
+> ⚠️ **Two corrections, 2026-09-12 (the old sample in this guide did not work if you copied it)**:
+> ① the setting text does **not** go in `pack.json`, nor in a `"world": {…}` sub-object of it — `_build_world` in
+> `core/packs.py` only reads `pk.read_json("world.json")`; ② even inside `world.json`, `universe` / `entries`
+> must sit at the **root** (wrapping them in `"world": {…}` yields `world.json skipped (no universe)`).
+> Both mistakes are silent: nothing errors, nothing is injected. A working sample to copy:
+> `qq-bot\packs\example.world\` (`pack.json` + `world.json`). The auditor only checks "the doc says it, does the
+> code have it" — not "does copying the doc actually run"; this was an instance of the latter, found by a human.
 
 Or embed it in a card pack (a `world.json` with the same fields, minus `spec`/`type`).
 

@@ -1,0 +1,16 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.tool",
+  "version": "1.0.0",
+  "type": "tool",
+  "title": "示例工具包（ToolCard 注册 · 默认不加载）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "permissions": ["env:TZ"],
+  "limits": { "timeout_s": 5, "memory_mb": 256, "calls_per_min": 60, "result_kb": 64 },
+  "tools": [
+    { "entry": "local_time.py", "cards": ["example.localtime"] }
+  ],
+  "note": "随仓示例包：演示 robot-pack-v1 **工具包（type=tool）** 的最小结构——一个 entry 文件 + 权限声明。契约见 docs/接口文档.md §3.7（tools/permissions/limits）与 §6.3（权限词表与沙箱），步骤讲解见 docs/MOD开发指南.md §7，ToolCard 契约见 §6.1。\n\n· **默认不执行任何 python**：pack.json 只是清单，`core/packs.py` 的 load_tools() 在 env PACKS_ENABLE_PY 未显式开启时**连 import 都不做**（返回空列表）。本包被 discover() 发现（type=tool 的包照常进发现列表），但不会被装载——这正是「装着却不动」的演示。\n· 权限声明 `env:TZ` 是本示例**实际用到的最小能力**：entry 读一个环境变量来定本地时区，没有它就退回系统本地时区。权限词表只有白名单、没有否定符，缺省 `permissions: []` = 零能力（读不了文件、联不了网、用不了模型）；limits 的核心侧有硬顶，包不能给自己放宽。\n· `tools[].cards` 声明该 entry 提供的 ToolCard 名（点分命名空间），是**声明性**字段（当前 load_tools 只读 entry，不校验 cards）——写它的意义是让读者知道这个 entry 里注册了什么，以及未来沙箱代理卡的审计口径。\n· entry 模块的 import 时机 = 装载时机（PACKS_ENABLE_PY 开启后才发生）：模块顶层按 ToolCard 契约自注册，没有别的副作用（不写文件、不起进程、不联网）。entry 路径是包内相对路径，resolve 后必须仍在包目录内（越界整包拒载，见 core/packs.py 的 _load_pack）。\n· 做自己的包：复制本目录改名，改 pack.json 的 name、按需收窄/扩大 permissions，再改 local_time.py 里的注册名与函数。"
+}

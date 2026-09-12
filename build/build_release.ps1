@@ -446,6 +446,23 @@ if ($Launcher) {
         Write-Host "  [跳过] 未找到 launcher\QQAI-Launcher.exe（存在才拷）" -ForegroundColor Yellow
     }
     Assert-Copy (Join-Path $root "launcher\README.md") $launcherDir
+    # 2026-09-12 **真缺件修复**：Launcher.ps1 按**路径**显式加载这四个包装 DLL
+    # （`LoadFrom("$launcherDir\Microsoft.Web.WebView2.Core.dll")`）——缺了不报错、只是**渲染不出主页与 GAL 页**。
+    # 原先把 exe 单独发出去 = 收包人打开只有原生页、主页面白着，且看不出缺什么。Run.bat 是 README 写的入口，同理。
+    foreach ($f in @("Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.Wpf.dll",
+                     "Microsoft.Web.WebView2.WinForms.dll", "WebView2Loader.dll", "Run.bat")) {
+        Assert-Copy (Join-Path $root "launcher\$f") $launcherDir
+    }
+    # 这个 zip 只是"启动器"单件，不是完整框架——不写清楚，收包人解压后会撞上"主页空白 / 依赖矩阵缺失"，
+    # 却不知道缺的是安装根里的 launcher\web\、deps.json、qq-bot\。一句说明成本极低。
+    $note = "QQAI 启动器（单件）——这不是完整框架，只含启动器本体。`r`n`r`n" +
+            "适用场景：① 你已有安装根（克隆或懒人包），只想换一个更新过的启动器；② 想单独看启动器界面。`r`n`r`n" +
+            "怎么用：`r`n" +
+            "  1) 解压到 <安装根>\launcher\ 覆盖同名文件——QQAI-Launcher.exe 与四个 DLL 必须放在一起，`r`n" +
+            "     否则主页 / GAL 页渲染不出来（失败详情见同目录 webview2_error.log）；`r`n" +
+            "  2) 或先获取完整框架：本仓 Releases 的 qqai-lazybundle-*.tar（懒人包，自带 exe 与安装脚本）。`r`n`r`n" +
+            "完整部署说明：docs\部署指南.md（英文 docs\DEPLOYMENT.en.md）。`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $launcherDir "使用说明.txt"), $note, [System.Text.UTF8Encoding]::new($true))
 
     $launcherZipPath = Join-Path $Out "qqai-launcher-$stamp.zip"
     if (Test-Path -LiteralPath $launcherZipPath) { Remove-Item -LiteralPath $launcherZipPath -Force }

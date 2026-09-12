@@ -27,6 +27,20 @@
 
 ## 1. Fresh install
 
+> **Know which source you have first** (added 2026-09-12: the two paths do not ship the same things, and mixing them up
+> makes people think files are missing):
+>
+> | Source | You get | You do **not** get (bring or build it yourself) |
+> |---|---|---|
+> | **Clone / source archive** | all sources, the seven example packs under `qq-bot\packs\`, the shipped placeholder persona `_starter`, the **four WebView2 wrapper DLLs** (`launcher\*.dll`) | **`QQAI-Launcher.exe`** (a build product), models, voice weights, NapCat; the WebView2 **browser runtime itself** is not shipped by either path (use the system one, below) |
+> | **Lazy bundle / release package** (Releases) | everything above **+ a pre-built exe + (`安装.ps1`)** | models, voice weights, NapCat (licensing and size — never shipped) |
+>
+> For a clone, the launcher entry point is **`launcher\Run.bat`** (it falls back to `Launcher.ps1` when the exe is
+> absent, and needs no admin rights). The WebView2 **browser runtime** comes from the **system Evergreen** install
+> (usually already present on Win10/11; this project does not ship it — `launcher\webview2\` holds SDK nupkg files, not a
+> usable fixed-version runtime). If rendering fails, see `launcher\webview2_error.log`. To see what is missing, what breaks without it and where to get it:
+> the launcher's **Components** page, or `launcher\Launcher.ps1 -Mode deps`.
+
 ```powershell
 # (1) Put the directory anywhere  (this guide calls it <install-root>)
 #     Unzip/clone the repo to any path, e.g. E:\robot — paths are no longer hard-coded
@@ -43,6 +57,7 @@ copy .env.example .env
 notepad .env
 #   SUPERUSERS=["your-qq-number"]   <- MUST be a JSON array (a bare number prevents startup)
 #   OWNER_NICKNAME=your-nickname    <- falls back to a neutral default if unset
+#   PERSONA=_starter                <- the shipped placeholder persona; point this at your own card
 
 # (4) Start (the launcher pulls up engine / NapCat as needed)
 cd <install-root>

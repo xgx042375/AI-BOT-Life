@@ -23,11 +23,26 @@
 
 ## 快速开始
 
+**先选安装路径**——两种都行，区别只在"启动器怎么启动"：
+
+| 路径 | 你拿到的东西 | 怎么启动 |
+|---|---|---|
+| **懒人包**（[Releases](../../releases) 的 `qqai-lazybundle-*.tar`） | 框架 + **预编译好的 `QQAI-Launcher.exe`** + `安装.ps1` | 解压 → 跑 `安装.ps1` → 双击 `launcher\Run.bat` |
+| **克隆本仓**（`git clone`） | 只有源码：**没有 exe**（它是构建产物，不随仓）；WebView2 的 4 个包装 DLL 随仓 | 双击 `launcher\Run.bat`（**它会自动回落到 `Launcher.ps1`**）；或自己 `launcher\build_exe.ps1` 生成 exe |
+
 ```
-1. 装 Python 3.13 + 依赖（qq-bot/pyproject.toml）与本地推理引擎（llama.cpp）
-2. 复制 qq-bot/.env.example → .env，至少填 SUPERUSERS（主人 QQ）
-3. 双击 launcher\QQAI-Launcher.exe → 启动器会检测缺什么、缺了会怎样、去哪拿
+1. 装 Python 3.13 + 依赖（qq-bot/pyproject.toml）与本地推理引擎（llama.cpp）；
+   不想用本地模型就跳过引擎，改在启动器「模型与接口」里填任意 OpenAI 兼容 API（模型可选，不是必须）
+2. 复制 qq-bot/.env.example → .env，至少填 SUPERUSERS（主人 QQ）。
+   人设开箱可用：默认 PERSONA=_starter（随仓的中性占位卡），要自己的角色就复制改名再改这一行
+3. 启动启动器（上表两种路径）→「组件」页会列出缺什么、缺了会怎样、去哪拿
+4. 点顶栏「▶ 启动」→ 引擎约 30-60 秒就绪 → 私聊机器人
 ```
+
+> **克隆用户须知（三件事）**：① `QQAI-Launcher.exe` 不在仓里（见上表）；② WebView2 的**包装 DLL**（`launcher\*.dll` 四个）随仓，
+> 但**运行时本体**（Evergreen，约 100 MB 级）项目不分发——用系统的即可（Win10/11 多半已内置；缺了到微软官网装 Evergreen Runtime，
+> 装不上时启动器仍可用，只是主页/GAL 页渲染不出来，失败详情见 `launcher\webview2_error.log`）；
+> ③ 模型、语音权重、NapCat 一律不随仓（许可与体积所限），按「组件」页指引自备。
 
 细节见 [`docs/部署指南.md`](docs/部署指南.md)（安装 / 升级 / 换盘 / 卸载 + 功能→依赖矩阵）与 [`docs/维护手册.md`](docs/维护手册.md)（启停 / 日志 / 状态 / 排障）。
 

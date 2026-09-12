@@ -1,0 +1,12 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.world",
+  "version": "1.0.0",
+  "type": "world",
+  "title": "示例世界观包（世界书 · 零 IP）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "universe": "stellar-teahouse",
+  "note": "随仓示例包：演示 robot-pack-v1 **世界观包（type=world）** 的最小结构——条目写在同目录的 world.json 里，字段与 v1 行为见 docs/接口文档.md §3.5。读取它的是 qq-bot/core/packs.py 的 world_index()（扫全部包的 world.json → {universe: [条目]}，按 priority 降序稳定排序、跨包合并），注入点在 plugins/persona 的 build_system_prompt()（**只注入 always:true 的条目**，整块上限 800 字）。\n\n· 三个条目演示三种写法：① priority 10 + always:true = 优先注入的核心设定；② priority 0 + always:true = 同世界的补充质感；③ always:false + keys = **v1 不会注入**的条目——keys 是 v2 关键词触发的预留 schema，写在这里是为了让你看见字段形状，别以为现在填了就生效。\n· universe 必须与卡的 universe **对齐**才注入：本包用 stellar-teahouse，随仓卡包 example.sakura 的 card.json 正是这个键（换成自己的世界观键时两边一起改）。\n· 分层：world 包 = 设定文本；data/universe_roles.json = 角色关系；qq-bot/data/scenes.json = 场景词库——三者以 universe 键对齐，互补不重叠。\n· 做自己的包：复制本目录改名，改 pack.json 的 name 与 world.json 的 universe/entries 即可（也可把同一份 world.json 直接塞进自己的卡包，卡包内嵌同样生效）。"
+}

@@ -72,6 +72,31 @@ cd qq-bot && .venv/Scripts/python.exe tools/export_cards.py     # 追加进 data
 **一个包可以同时是多种**：`type=card` 的包内可以带 `quotes.json` / `voice.json` / `world.json` / `sprites/`。
 `type` 只决定**主身份**（谁给你回落、谁给你索引）。
 
+### 1.1 内容落点总表（**"我这东西到底该放哪、界面哪一页能看到"**）
+
+| 内容 | 权威落点 | 装完在哪看得见 |
+|---|---|---|
+| 角色卡（人设） | `qq-bot\data\personas\<卡名>.json`（本地，**优先**）或内容包 `card.json` | 启动器「干员」页（本地卡与包卡合并列出）；也可私聊 `/人设 卡名` |
+| 音色 `voice` | 内容包（`qq-bot\packs\` 随仓示例 / `data\packs\` 用户安装） | 启动器「内容包」页，行尾 `⟨voice⟩` |
+| 道具 `item` / 情绪 `emotion` / 世界观 `world` / 工具 `tool` | 同上 | 同上，行尾标 `⟨item⟩` / `⟨emotion⟩` / `⟨world⟩` / `⟨tool⟩` |
+| 舞台（背景 + 差分）`gal` | 同上（`type=gal`） | 「内容包」页的**舞台包**组 |
+| 皮肤（启动器外观） | `launcher\web\skins\<名>\`（含 `manifest.json`） | 「内容包」页的**皮肤**组；「设置 → 皮肤」切换 |
+| 第三方**代码**插件 | `data\plugins\`（子包目录或单个 `.py`；重启 bot 生效） | 「内容包」页的**插件**组 |
+| **道具 / 特殊状态的文案**（不是包！） | `data\special_content.json`（**规范根**，gitignored）——状态白名单在代码里 | 没有页面：它是给模型的文案层，见 接口文档 §6.5 |
+| 我的实例现在装了什么 | —— | 启动器「内容包」页四组 + 无界面 `Launcher.ps1 -Mode packs` |
+
+> ⚠️ **两个最容易踩的认知差**：
+> ① 启动器那页叫「内容包」但**按"给的东西"分四组**（内容包 / 舞台包 / 皮肤 / 插件），**不按 `type` 分组**——
+> 所以 `item`/`emotion`/`voice`/`world`/`tool` 五类**都在「内容包」组里**，靠行尾 `⟨type⟩` 区分。
+> ② **道具与"特殊状态"不是内容包**：能力（状态白名单、`set_state` 的行为）在 `core/special.py` 里，
+> 文案在 `data\special_content.json`；`type=item` 的包是"道具**定义**"（名称/效果/时长），两者互补不重叠。
+
+### 1.2 每类都有一个最小示例可抄
+
+`qq-bot\packs\` 下随仓带**七类各一个**最小示例（实测：`example.sakura`=card、`example.voice`、`example.item`、
+`example.emotion`、`example.world`、`example.tool`、`example.stage`=gal，均为 `root=builtin`）：
+把整个目录复制到 `data\packs\` 改名，就是"能跑起来的最小包"。**先抄再改**比对着文档从零写快得多。
+
 ---
 
 ## 2. 内容包的三条铁律（**违反不会报错，但一定不生效**）
@@ -202,11 +227,23 @@ if (state.svc && state.svc.bot === false) { /* 在你自己的界面里提示"�
 
 ## 6. 世界观包（`world`）——让角色"知道"自己的世界
 
-```json
-{ "spec": "robot-pack-v1", "type": "world", "name": "yourname.world", "version": "1.0.0",
-  "world": { "universe": "your-world",
-             "entries": [ { "text": "这个世界里…", "always": true, "priority": 0 } ] } }
+**两个文件**：`pack.json` 只声明身份，设定文本放同目录的 `world.json`（**必须叫这个名字**，加载器按文件名读）：
+
+```jsonc
+// <包目录>/pack.json
+{ "spec": "robot-pack-v1", "type": "world", "name": "yourname.world", "version": "1.0.0" }
+
+// <包目录>/world.json          ← 内容在这里；universe / entries 在**根级**
+{ "universe": "your-world",
+  "entries": [ { "text": "这个世界里…", "always": true, "priority": 0 } ] }
 ```
+
+> ⚠️ **2026-09-12 两处订正（本文旧样例照抄了不会生效）**：
+> ① 设定文本**不在** `pack.json` 里，也不在 `pack.json` 的 `"world": {…}` 子对象里——`core/packs.py` 的
+> `_build_world` 只读 `pk.read_json("world.json")`；② 就算写进 `world.json`，`universe`/`entries` 也必须在**根级**
+> （包一层 `"world": {…}` 会得到 `world.json skipped (no universe)`）。
+> 两处错了都不会报错、只是**静默不注入**。可抄的活样例：`qq-bot\packs\example.world\`（`pack.json` + `world.json`）。
+> 审计只核"文档写了、代码有没有"，不核"照文档抄能不能跑"——这一条属于后者，是人读出来的。
 
 或直接内嵌进卡包（放 `world.json`，字段同上不含 `spec`/`type`）。
 

@@ -169,18 +169,28 @@
       "name": "启动器界面（内嵌浏览器）",
       "required": false,
       "provides": "启动器 GUI 里的主页/GAL 页渲染",
-      "detect": { "kind": "path", "value": "launcher/webview2", "label": "目录存在" },
-      "degrade": "启动器仍是可用窗口（WPF 原生页：设置/干员/日志/状态/关于），但主页与 GAL 页不可渲染",
+      "detect": { "kind": "path", "value": "launcher/Microsoft.Web.WebView2.Core.dll", "label": "包装 DLL 存在" },
+      "degrade": "启动器仍是可用窗口（WPF 原生页：设置/干员/日志/状态/关于），但主页与 GAL 页**渲染不出来**；失败详情见 launcher\\webview2_error.log",
       "components": [
         {
+          "id": "wv2-wrapper",
+          "name": "WebView2 包装 DLL（4 个，随仓/随发行物）",
+          "path": "launcher/Microsoft.Web.WebView2.Core.dll",
+          "kind": "file",
+          "size_mb": 1,
+          "source": "随本仓 launcher\\ 目录（WebView2 SDK 的托管包装 + WebView2Loader.dll）",
+          "source_kind": "随包提供",
+          "install": "克隆或懒人包都已带上；若被误删，从本仓 launcher\\ 目录拷回同名 4 个文件即可（Core/Wpf/WinForms/WebView2Loader）"
+        },
+        {
           "id": "wv2-runtime",
-          "name": "Microsoft WebView2 运行时",
-          "path": "launcher/webview2",
-          "kind": "dir",
-          "size_mb": 101,
+          "name": "Microsoft WebView2 运行时（系统 Evergreen）",
+          "path": "",
+          "kind": "runtime",
+          "size_mb": 0,
           "source": "https://developer.microsoft.com/microsoft-edge/webview2/",
           "source_kind": "微软官方",
-          "install": "Win11 通常已内置 Evergreen 运行时；本项目另带固定版（launcher\\webview2\\）以免受系统版本波动影响"
+          "install": "Win10/11 通常已内置 Evergreen 运行时；缺失就去上面链接装 Evergreen Runtime。⚠️ 本项目**不分发**运行时本体（约 100 MB 级）：launcher\\webview2\\ 存的是 WebView2 SDK 的 nupkg 包，**不是**可直接用的固定版运行时——2026-09-12 订正（此前这里写的\"另带固定版\"不成立）"
         }
       ]
     },

@@ -1,0 +1,11 @@
+{
+  "key": "example_teahouse",
+  "name": "示例音色·云汀",
+  "lang": "zh",
+  "personas": ["樱"],
+  "gpt": "E:\\robot\\tools\\GPT-SoVITS-v4-package\\GPT-SoVITS-v4-20250529\\GPT_weights_v4\\example-teahouse-e10.ckpt",
+  "sovits": "E:\\robot\\tools\\GPT-SoVITS-v4-package\\GPT-SoVITS-v4-20250529\\SoVITS_weights_v4\\example-teahouse_e10_s200_l32.pth",
+  "ref_dir": "E:\\robot\\tools\\GPT-SoVITS-v4-package\\GPT-SoVITS-v4-20250529\\voices\\example-teahouse\\refs",
+  "refs": "voice_refs.json",
+  "emo_refs": { "温柔": "招呼熟客", "得意": "炫耀茶艺" }
+}
