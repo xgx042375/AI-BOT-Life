@@ -100,6 +100,7 @@ The step order in `start.ps1`:
 | Start options | Skin | the `skin` key of `data/launcher.json` | **re-navigates on save** (no restart needed) |
 | Model & API | Backend type (10 presets) | `.env` `LLM_PROVIDER` (`local` / `openai_compat`) | restart |
 | Model & API | Apply preset ↦ the three boxes | only **fills base_url + the suggested model name into the input boxes** (nothing is persisted; you still have to save) | —— |
+| Model & API | **Fetch models** (button, new 2026-09-12) | asks the endpoint for its list (OpenAI-compatible `GET {base}/models`) using the current base URL + API Key, fills the dropdown on the right; picking one writes it into the model-name box. **Nothing is persisted** | —— |
 | Model & API | API base URL / API Key / model name | `.env` `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | restart |
 | Identity | Owner QQ | `.env` `SUPERUSERS` (**a JSON array**) | restart + **you must run the uid migration** (§3.3) |
 | Identity | Owner nickname | `.env` `OWNER_NICKNAME` | restart |
@@ -129,6 +130,16 @@ The step order in `start.ps1`:
 > code** — `core/llm.py` only splits "local / non-local". If you need a native protocol: **run a protocol proxy on your own
 > machine** (LiteLLM / llm-rosetta / api-protocol-converter) and put **the proxy's address** in "API base URL".
 > ⚠️ Non-local endpoints do **not** get `chat_template_kwargs` (`thinking_extra`) injected — deliberate design, do not change it.
+>
+> **Model names have a shelf life (corrected 2026-09-12 from a user report)**: the preset used to say `deepseek-chat`,
+> which has long been retired; DeepSeek's current **version-less** id is `deepseek-flash` (V4.1 Flash). The older idea of
+> "a separate model name for the thinking tier" (`deepseek-reasoner`) no longer applies either — the thinking tier is now
+> a **parameter** (`LLM_THINKING_PARAM` and friends). The policy here is therefore:
+> **a preset only guarantees the endpoint address** (the right-hand column of the table above is the single source for that),
+> and any model name we cannot verify is **left empty** — use the settings page's **Fetch models** button to pull the live
+> list from the endpoint. Maintenance rule: writing a model name into the presets requires a date **and** a source
+> (official docs or a real `GET /models`), otherwise nobody will dare touch it six months from now.
+> Changing the presets means changing `Get-ProviderPresets` in `launcher/Launcher.ps1`.
 >
 > **Full-API mode (no local engine needed)**: point `LLM_BASE_URL` at an external endpoint and 11434 can stay off entirely.
 > This is how "the model is not mandatory" is realized (releases are designed around it: model, QQ and voice can all be missing).
