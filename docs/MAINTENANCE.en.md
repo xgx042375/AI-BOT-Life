@@ -100,6 +100,9 @@ The step order in `start.ps1`:
 | Start options | Skin | the `skin` key of `data/launcher.json` | **re-navigates on save** (no restart needed) |
 | Model & API | Backend type (10 presets) | `.env` `LLM_PROVIDER` (`local` / `openai_compat`) | restart |
 | Model & API | Apply preset ↦ the three boxes | only **fills base_url + the suggested model name into the input boxes** (nothing is persisted; you still have to save) | —— |
+| Model & API | **Profile** (local / online, new 2026-09-12) | the two sets live in `data/launcher.json` as `llmProfiles.{local,online}`; switching a profile only loads its values into the three boxes and **leaves `.env` alone** | —— |
+| Model & API | Activate this profile ↦ write `.env` | writes that profile's four keys **explicitly** into `.env` (the local profile writes an empty URL/model → the 11434 + gemma fallback chain applies) | restart |
+| Model & API | Boxes ↦ save into this profile | stores the current box values into the selected profile (`launcher.json`), **not** `.env` | —— |
 | Model & API | **Fetch models** (button, new 2026-09-12) | asks the endpoint for its list (OpenAI-compatible `GET {base}/models`) using the current base URL + API Key, fills the dropdown on the right; picking one writes it into the model-name box. **Nothing is persisted** | —— |
 | Model & API | API base URL / API Key / model name | `.env` `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | restart |
 | Identity | Owner QQ | `.env` `SUPERUSERS` (**a JSON array**) | restart + **you must run the uid migration** (§3.3) |
@@ -140,6 +143,21 @@ The step order in `start.ps1`:
 > list from the endpoint. Maintenance rule: writing a model name into the presets requires a date **and** a source
 > (official docs or a real `GET /models`), otherwise nobody will dare touch it six months from now.
 > Changing the presets means changing `Get-ProviderPresets` in `launcher/Launcher.ps1`.
+>
+> **Local / online profiles (2026-09-12, from a user report: "I switched to online, then switched back, and nothing changed")**:
+> there is only one `.env`, so switching to online overwrote the local set of values — switching back therefore changed
+> nothing at all. Now the two sets live in `data/launcher.json` (`llmProfiles.{local,online}`, machine-local and gitignored)
+> and `.env` carries only the **activated** set. A status line under the profile row prints "what `.env` actually says" next
+> to "what this profile says" and, when they differ, tells you which button to press (activate, or save into the profile).
+> The local profile **stores empty values**: empty means "unset", and the `core/llm.py` fallback chain then yields
+> `http://127.0.0.1:11434/v1` + `model=gemma` + `key=ollama`. Hard-coding those instead would be the risky choice —
+> it would silently stop working the day the engine alias changes.
+>
+> ⚠️ **The silent trap (the old implementation actually hit it)**: in `core/llm.py`, `llm_provider` **only decides whether
+> thinking gets injected**; the endpoint comes from `llm_base_url`. So with `LLM_PROVIDER=local` while `LLM_BASE_URL` still
+> points at a cloud endpoint, **requests keep going to the cloud** (burning API credit without telling you). The old save
+> path only wrote non-empty values, which is exactly why it could never clear that state. Activating a profile now writes
+> empty values explicitly, and the status line raises an alarm for that combination.
 >
 > **Full-API mode (no local engine needed)**: point `LLM_BASE_URL` at an external endpoint and 11434 can stay off entirely.
 > This is how "the model is not mandatory" is realized (releases are designed around it: model, QQ and voice can all be missing).

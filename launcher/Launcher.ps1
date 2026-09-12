@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.87"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.88"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -86,6 +86,153 @@ function Get-LauncherCfg {
 }
 function Set-LauncherCfg($d) {
     try { $d | ConvertTo-Json | Set-Content $cfgFile -Encoding UTF8 } catch {}
+}
+
+# ---------------- LLM 配置档：本地 / 在线（2026-09-12 用户实测"切在线后再切回去没变"） ----------------
+# 病根有两个，都在"只有一份 .env"这件事上：
+#   ① **保存只写非空值**（旧实现 `if ($u) { Set-EnvValue ... }`）→ 从在线切回本地时，在线那套 URL/型号
+#      赖在 .env 里清不掉，界面上三格也还显示在线的值 = 用户看到的"没变"。
+#   ② 更危险的是它**静默**：`core/llm.py` 里 `llm_provider` 只决定"要不要注入 thinking"，
+#      而端点取的是 `llm_base_url`——所以 `LLM_PROVIDER=local` + 在线 URL 的组合**仍然会把请求发到云端**。
+#      这种"以为切回来了、其实还在烧 API"的状态，界面上必须自己喊出来（见 txtProfileNote 的告警）。
+# 现在的分工：
+#   · **档**（local / online）= 两组保存好的值，存在 launcher.json（本机状态，gitignored），切换**不动** .env；
+#   · **激活** = 把该档的值**显式**写进 .env（含空串=清空，让回落链生效：11434 + model=gemma + key=ollama）。
+$script:LLM_PROFILE_KEYS = @("local", "online")
+# 程序性选中档（Refresh-Cfg 回显）不该被当成"用户切换档"——否则回显时会把三格再改一遍，与 .env 回显打架
+$script:llmProfileGuard = $false
+function Get-LlmProfiles {
+    $d = @{
+        active = "local"
+        # 本地档**存空值**：空串=未设，core/llm.py 的回落链给出 11434/v1 + model=gemma + key=ollama。
+        # 为什么不写死具体值：万一将来引擎别名变了，写死的值会静默失效，而回落链跟着代码走。
+        local  = @{ provider = "local";         url = ""; key = "ollama"; model = "" }
+        online = @{ provider = "openai_compat"; url = ""; key = "";       model = "" }
+    }
+    try {
+        if (Test-Path $cfgFile) {
+            $j = Get-Content $cfgFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($j.llmProfile -and ($script:LLM_PROFILE_KEYS -contains [string]$j.llmProfile)) { $d.active = [string]$j.llmProfile }
+            foreach ($k in $script:LLM_PROFILE_KEYS) {
+                $p = $j.llmProfiles.$k
+                if (-not $p) { continue }
+                foreach ($f in @("provider", "url", "key", "model")) {
+                    $v = "$($p.$f)"
+                    if ($v -ne "") { $d[$k][$f] = $v }
+                }
+            }
+        }
+    } catch {}
+    return $d
+}
+function Set-LlmProfiles($prof) {
+    # 读-改-写：只覆盖 llmProfile / llmProfiles 两个键，llm / voice / skin 原样保留。
+    # 这份文件同时被「保存 SAVE」写（Set-LauncherCfg 是整体覆写）——两边都必须读-改-写，否则互相抹键。
+    try {
+        $j = @{}
+        if (Test-Path $cfgFile) { try { $j = Get-Content $cfgFile -Raw -Encoding UTF8 | ConvertFrom-Json } catch {} }
+        $out = @{}
+        foreach ($k in @("llm", "voice", "skin")) { if ($null -ne $j.$k) { $out[$k] = $j.$k } }
+        if (-not $out.ContainsKey("llm")) { $out["llm"] = $true }
+        if (-not $out.ContainsKey("voice")) { $out["voice"] = $true }
+        if (-not $out.ContainsKey("skin")) { $out["skin"] = "generic" }
+        $out["llmProfile"] = [string]$prof.active
+        $out["llmProfiles"] = @{ local = $prof.local; online = $prof.online }
+        $out | ConvertTo-Json -Depth 6 | Set-Content $cfgFile -Encoding UTF8
+    } catch {}
+}
+function Get-LlmEnvNow {
+    # .env 里**当前真正生效**的那一套（空串=未设，按 core/llm.py 的回落链理解）
+    return @{
+        provider = "$(Get-EnvValue 'LLM_PROVIDER')"
+        url      = "$(Get-EnvValue 'LLM_BASE_URL')"
+        key      = "$(Get-EnvValue 'LLM_API_KEY')"
+        model    = "$(Get-EnvValue 'LLM_MODEL')"
+    }
+}
+function Test-ExternalUrl($u) {
+    # 是否指向"非本机"端点（用于 provider=local 却指着云端的静默告警）
+    if (-not $u) { return $false }
+    return -not ($u -match "(?i)://(127\.0\.0\.1|localhost|\[::1\])")
+}
+function Set-LlmProfileToEnv($p) {
+    # 显式四键写入（含空串）。空值必须能写进去——这正是"切回本地"能生效的关键。
+    Set-EnvValue "LLM_PROVIDER" ([string]$p.provider)
+    Set-EnvValue "LLM_BASE_URL" ([string]$p.url)
+    Set-EnvValue "LLM_MODEL"    ([string]$p.model)
+    Set-EnvValue "LLM_API_KEY"  ([string]$p.key)
+}
+function Get-LlmEffective($provider, $url, $model) {
+    # "有效值"口径：空串不是"空"，而是**回落链解析出来的那个值**（core/llm.py 的铁律）。
+    # 界面上若把"空"当空显示，用户会以为坏了；对照时若拿空串比 11434/v1，又会**误报"不一致"**。
+    $isLocal = (-not $provider) -or ($provider -eq "local")
+    return @{
+        url   = if ($url) { $url } elseif ($isLocal) { "http://127.0.0.1:11434/v1（本地默认）" } else { "" }
+        model = if ($model) { $model } elseif ($isLocal) { "gemma（本地默认）" } else { "" }
+    }
+}
+function Get-LlmBoxes {
+    return @{
+        url   = "$($window.FindName('TxtApiUrl').Text)".Trim()
+        key   = "$($window.FindName('TxtApiKey').Text)".Trim()
+        model = "$($window.FindName('TxtModel').Text)".Trim()
+    }
+}
+function Load-LlmProfileToBoxes($key) {
+    # 把某档的值填进三格（**只改界面，不落 .env**）。界面上"切换档"必须看得见变化——
+    # 用户报的"切回本地没变"，最直接的一层就是三格纹丝不动。
+    try {
+        $prof = Get-LlmProfiles
+        if (-not ($script:LLM_PROFILE_KEYS -contains $key)) { return }
+        $p = $prof[$key]
+        $u = $window.FindName("TxtApiUrl"); if ($u) { $u.Text = [string]$p.url }
+        $k = $window.FindName("TxtApiKey"); if ($k) { $k.Text = [string]$p.key }
+        $m = $window.FindName("TxtModel");  if ($m) { $m.Text = [string]$p.model }
+        # 档里存的是空串（本地默认）时，界面显示**有效值**——空框看着像坏了，且用户无从知道它会回落到哪
+        $effEmpty = (-not [string]$p.url) -or (-not [string]$p.model)
+        if ($effEmpty) {
+            $e = Get-LlmEffective ([string]$p.provider) ([string]$p.url) ([string]$p.model)
+            if ($u -and -not $u.Text) { $u.Text = $e.url }
+            if ($m -and -not $m.Text) { $m.Text = $e.model }
+        }
+        if ($k -and -not $k.Text) { $k.Text = "ollama" }
+    } catch {}
+}
+function Update-LlmProfileNote {
+    # "当前生效（.env）" vs "本档" 的诚实对照 + 两条必须喊出来的告警。
+    # 为什么非要有这一行：旧实现里"以为切回本地了、其实还在请求云端"是**完全静默**的。
+    try {
+        $t = $window.FindName("txtProfileNote")
+        if (-not $t) { return }
+        $prof = Get-LlmProfiles
+        $sel = $window.FindName("CmbProfile")
+        $key = if ($sel -and $sel.SelectedItem) { [string]$sel.SelectedItem.Tag } else { [string]$prof.active }
+        $p = $prof[$key]
+        $now = Get-LlmEnvNow
+        $pvNow = if ($now.provider) { $now.provider } else { "local" }
+        # 对照用**有效值**：空串在两边都解析成同一个回落值，否则"本地档(空) vs .env(空)"会被误判成不一致
+        $effP = Get-LlmEffective ([string]$p.provider) ([string]$p.url) ([string]$p.model)
+        $effN = Get-LlmEffective $pvNow $now.url $now.model
+        $same = ($pvNow -eq [string]$p.provider) -and ($effN.url -eq $effP.url) -and ($effN.model -eq $effP.model)
+        $nmShow = if ($key -eq "local") { "本地" } else { "在线" }
+        $lines = @()
+        $lines += "当前生效（.env）：provider=" + $(if ($now.provider) { $now.provider } else { "（未设＝local）" }) +
+                  " ｜ URL=" + $effN.url +
+                  " ｜ 模型=" + $effN.model
+        $lines += "本档【" + $nmShow + "】：provider=" + [string]$p.provider +
+                  " ｜ URL=" + $effP.url +
+                  " ｜ 模型=" + $effP.model
+        if ($same) { $lines += "→ 一致：本档就是当前生效的配置。" }
+        else { $lines += "→ ⚠️ 不一致：点「激活此档 ↦ 写入 .env」让本档生效；或点「三格 ↦ 存入此档」把 .env 现状收进档里。" }
+        if ($pvNow -eq "local" -and (Test-ExternalUrl $now.url)) {
+            $lines += "→ ⚠️⚠️ .env 里 provider=local 但 URL 指向外部端点（$($now.url)）——core/llm.py 的 provider 只决定 thinking 注入，" +
+                      "端点仍取这个 URL，**请求会发到云端**。要回本地：激活「本地」档（会把 URL/模型清空，走 11434 回落链）。"
+        }
+        if ($key -eq "local" -and (Test-ExternalUrl ([string]$p.url))) {
+            $lines += "→ ⚠️ 本地档里存着外部 URL，激活它不会回到本地引擎。"
+        }
+        $t.Text = ($lines -join "`n")
+    } catch {}
 }
 
 # ---------------- 皮肤包（2026-09-10 Phase2：launcher-skin-v1，规范见 docs/皮肤包接口规范-v1.md） ----------------
@@ -1185,7 +1332,16 @@ function Get-OwnerPersona {
 
               <!-- 2026-09-11 热修六：模型与接口（写 qq-bot\.env 的 LLM_* 键） -->
               <TextBlock Text="模型与接口" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4" Margin="0,24,0,0"/>
+              <!-- 2026-09-12 配置档（本地/在线）：两套值分别存 launcher.json，.env 只承载"激活的那一套"。
+                   为什么要有它：只有一份 .env 时，切到在线就把本地那组覆盖掉了——切回来自然"什么都没变"。 -->
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="配置档" Width="90" FontSize="12" Foreground="#A9B0BA" VerticalAlignment="Center"/>
+                <ComboBox x:Name="CmbProfile" Width="150" Height="26" VerticalContentAlignment="Center"/>
+                <Button x:Name="BtnActivateProfile" Content="激活此档 ↦ 写入 .env" FontSize="11" Width="150" Height="26" Margin="8,0,0,0" Style="{StaticResource CutBtn}" Foreground="#0B0D10"/>
+                <Button x:Name="BtnSaveProfile" Content="三格 ↦ 存入此档" FontSize="11" Width="130" Height="26" Margin="8,0,0,0" Style="{StaticResource CutBtn}" Foreground="#A9B0BA"/>
+              </StackPanel>
+              <TextBlock x:Name="txtProfileNote" FontSize="10" Foreground="#6A7076" TextWrapping="Wrap" MaxWidth="560" Margin="90,4,0,0"/>
+              <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                 <TextBlock Text="后端类型" Width="90" FontSize="12" Foreground="#A9B0BA" VerticalAlignment="Center"/>
                 <ComboBox x:Name="CmbProvider" Width="180" Height="26" VerticalContentAlignment="Center"/>
                 <Button x:Name="BtnApplyPreset" Content="套用预设 ↦ 三格" FontSize="11" Width="120" Height="26" Margin="8,0,0,0" Style="{StaticResource CutBtn}" Foreground="#0B0D10"/>
@@ -2094,6 +2250,29 @@ function Refresh-Cfg {
         $u = $window.FindName("TxtApiUrl"); if ($u) { $u.Text = Get-EnvValue "LLM_BASE_URL"; if (-not $u.Text) { $u.Text = Get-EnvValue "OLLAMA_BASE_URL" }; if (-not $u.Text) { $u.Text = "http://127.0.0.1:11434/v1" } }
         $k = $window.FindName("TxtApiKey"); if ($k) { $k.Text = Get-EnvValue "LLM_API_KEY"; if (-not $k.Text) { $k.Text = "ollama" } }
         $m = $window.FindName("TxtModel"); if ($m) { $m.Text = Get-EnvValue "LLM_MODEL"; if (-not $m.Text) { $m.Text = Get-EnvValue "OLLAMA_MODEL" }; if (-not $m.Text) { $m.Text = "gemma" } }
+        # 2026-09-12 配置档回显（2026-09-12 用户报"切在线后再切回去没变"）：
+        # 档下拉 + **把活动档的值载进三格**（界面必须跟着档变）+ 状态对照行。
+        # 注意顺序：三格先按 .env 填（上一行），再由档覆盖——这样"档"是编辑对象、".env"是生效事实，
+        # 两者不一致时由 Update-LlmProfileNote 明确喊出来，而不是让用户猜。
+        $cpf = $window.FindName("CmbProfile")
+        if ($cpf) {
+            if ($cpf.Items.Count -eq 0) {
+                foreach ($pair in @(@("本地（local 引擎）", "local"), @("在线（API 端点）", "online"))) {
+                    $it = New-Object System.Windows.Controls.ComboBoxItem
+                    $it.Content = [string]$pair[0]; $it.Tag = [string]$pair[1]
+                    $cpf.Items.Add($it) | Out-Null
+                }
+            }
+            $prof = Get-LlmProfiles
+            $script:llmProfileGuard = $true      # 抑制"程序性选中"触发载档（否则会与上面的 .env 回显打架）
+            try {
+                $hitPf = $false
+                foreach ($it in @($cpf.Items)) { if ([string]$it.Tag -eq $prof.active) { $cpf.SelectedItem = $it; $hitPf = $true; break } }
+                if (-not $hitPf -and $cpf.Items.Count -gt 0) { $cpf.SelectedIndex = 0 }
+            } finally { $script:llmProfileGuard = $false }
+            Load-LlmProfileToBoxes $prof.active
+            Update-LlmProfileNote
+        }
         # 2026-09-12 T5.1：身份区回显（SUPERUSERS 是 JSON 数组，只取首个元素展示；OWNER_NICKNAME 直读）
         $oq = $window.FindName("TxtOwnerQq"); if ($oq) { $oq.Text = Get-OwnerQqEnv }
         $ont = $window.FindName("TxtOwnerNick"); if ($ont) { $ont.Text = Get-EnvValue "OWNER_NICKNAME" }
@@ -2611,21 +2790,36 @@ BindClick "BtnSaveCfg" ({
         $sel = $window.FindName("CmbSkin")
         if ($sel -and $sel.SelectedItem) { $d["skin"] = [string]$sel.SelectedItem.Tag }
     } catch {}
+    # 配置档必须**一起**写回：Set-LauncherCfg 是整体覆写，不带这两个键就把档抹掉了
+    # （同一份文件多个写者 → 每个写者都要读-改-写，这是"改一处忘另一处"的高发面）
+    try {
+        $profKeep = Get-LlmProfiles
+        $d["llmProfile"]  = [string]$profKeep.active
+        $d["llmProfiles"] = @{ local = $profKeep.local; online = $profKeep.online }
+    } catch {}
     Set-LauncherCfg $d
-    # 2026-09-11 热修六：模型与接口写入 LLM_*（core/llm.py 读取；本地默认三值与回落链等价，零行为变化）
+    # 2026-09-11 热修六：模型与接口写入 LLM_*（core/llm.py 读取）
+    # 2026-09-12 配置档修正：① 保存前把三格**回存活动档**（否则这次编辑只进 .env、切档即丢）；
+    #   ② **本地档显式写空**（旧实现 `if ($u)` 只写非空 → 切回本地清不掉在线 URL，
+    #      而 provider=local + 在线 URL 会让请求照样发到云端，静默且烧钱）。
     try {
         $provSel = $window.FindName("CmbProvider").SelectedItem
         $prov = if ($provSel) { [string]$provSel.Tag } else { "local" }
-        $u = $window.FindName("TxtApiUrl").Text.Trim()
-        $m = $window.FindName("TxtModel").Text.Trim()
-        $k = $window.FindName("TxtApiKey").Text.Trim()
+        $b = Get-LlmBoxes
+        $u = $b.url; $m = $b.model; $k = $b.key
         if ($prov -ne "local" -and (-not $u -or -not $m)) {
             $window.FindName("txtCfgMsg").Text = "API 模式需要至少填写『接口地址 URL + 模型名』——模型段未保存"
         } else {
             Set-EnvValue "LLM_PROVIDER" $prov
-            if ($u) { Set-EnvValue "LLM_BASE_URL" $u }
+            Set-EnvValue "LLM_BASE_URL" $u          # 空串＝清空（本地档正是靠这一步真正切回去）
+            Set-EnvValue "LLM_MODEL"    $m
             if ($k) { Set-EnvValue "LLM_API_KEY" $k }
-            if ($m) { Set-EnvValue "LLM_MODEL" $m }
+            $prof = Get-LlmProfiles
+            $pkey = if ($prof.active -eq "online" -and $prov -ne "local") { "online" } else { "local" }
+            $prof[$pkey] = @{ provider = $prov; url = $u; key = $k; model = $m }
+            $prof.active = $pkey
+            Set-LlmProfiles $prof
+            if ($script:wv -and $script:wv.CoreWebView2) { Update-LlmProfileNote }
         }
     } catch {}
     $script:cfgNotes = @()
@@ -2718,6 +2912,57 @@ BindClick "BtnApplyPreset" ({
         if ($p["url"]) { $msg += "（URL 已填" + $(if ($p["model"]) { "、型号已给一个起点" } else { "、**型号留空**" }) + "）" } else { $msg += "（该项不指定地址，请自填接口地址 URL）" }
         $msg += "。型号名会过期：填好 Key 后点「拉取型号」按端点现取最稳；别忘了「保存 SAVE」写入 .env。"
         $im3.Text = $msg
+    } catch {}
+})
+# 配置档（2026-09-12）：切换档 = 只改界面（把该档的值载进三格）；激活 = 写 .env；存入 = 三格存回档。
+BindSelect "CmbProfile" ({
+    try {
+        if ($script:llmProfileGuard) { return }     # 程序性选中（Refresh-Cfg 回显）不当作"用户切换"
+        $sel = $window.FindName("CmbProfile").SelectedItem
+        if (-not $sel) { return }
+        $key = [string]$sel.Tag
+        Load-LlmProfileToBoxes $key
+        Update-LlmProfileNote
+        $im = $window.FindName("txtCfgMsg")
+        if ($im) {
+            $im.Text = "已载入【" + $(if ($key -eq "local") { "本地" } else { "在线" }) + "】档的值到三格（**尚未写入 .env**）。" +
+                       "点「激活此档 ↦ 写入 .env」才生效（重启 bot 后生效）。"
+        }
+    } catch {}
+})
+BindClick "BtnSaveProfile" ({
+    try {
+        $sel = $window.FindName("CmbProfile").SelectedItem
+        if (-not $sel) { return }
+        $key = [string]$sel.Tag
+        $b = Get-LlmBoxes
+        $prof = Get-LlmProfiles
+        $prov = if ($key -eq "local") { "local" } else { "openai_compat" }
+        $prof[$key] = @{ provider = $prov; url = $b.url; key = $b.key; model = $b.model }
+        Set-LlmProfiles $prof
+        Update-LlmProfileNote
+        $im = $window.FindName("txtCfgMsg")
+        if ($im) { $im.Text = "三格已存入【" + $(if ($key -eq "local") { "本地" } else { "在线" }) + "】档（launcher.json；**未动 .env**）。" }
+    } catch {}
+})
+BindClick "BtnActivateProfile" ({
+    try {
+        $sel = $window.FindName("CmbProfile").SelectedItem
+        if (-not $sel) { return }
+        $key = [string]$sel.Tag
+        $prof = Get-LlmProfiles
+        $b = Get-LlmBoxes
+        # 激活前先把三格收进档里：用户很可能在界面上改过值就直接点激活——不先收，激活的就是旧值（静默失效）
+        $prof[$key] = @{ provider = $(if ($key -eq "local") { "local" } else { "openai_compat" }); url = $b.url; key = $b.key; model = $b.model }
+        $prof.active = $key
+        Set-LlmProfileToEnv $prof[$key]
+        Set-LlmProfiles $prof
+        Refresh-Cfg
+        $im = $window.FindName("txtCfgMsg")
+        if ($im) {
+            $im.Text = "已激活【" + $(if ($key -eq "local") { "本地" } else { "在线" }) + "】档：.env 的 LLM_PROVIDER / LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 已按档写入" +
+                       $(if ($key -eq "local") { "（URL 与模型名写空＝走本地回落链：11434 + gemma）" } else { "" }) + "；**重启 bot 生效**。"
+        }
     } catch {}
 })
 # 「拉取型号」（2026-09-12）：按 URL+Key 向端点要模型清单，填进下拉。选中即写入模型名。
