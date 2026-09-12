@@ -922,6 +922,69 @@ def _web_ids_selftest() -> str:
             f"非按钮豁免/setLamp+querySelector）")
 
 
+# ── J 项第四片：**界面文案表的覆盖面**（全局语言切换，2026-09-12）────────────────────
+# 为什么单独立一片：语言切换做在"显示出口"（界面树）上——好处是漏翻看得见、坏处是**漏翻不会报错**。
+# 这一片把"静态界面文案"的覆盖率变成机器判定的：XAML 里每个中文字面量都必须在文案表里有条目。
+# 判据只做**单向**（XAML ⊆ 表）：表里多出来的键是合法的（动态句、列表项、正则模式），不判。
+# 另外两条零噪声检查：表键不许是英文（键必须是中文原文，否则切换回中文会失败）、值不许为空。
+_UI_LANG_TABLE_RE = re.compile(r"(?s)\$script:UI_LANG_TABLE = @\{(.*?)\n\}")
+_UI_LANG_KEY_RE = re.compile(r'"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"')
+
+
+def _ui_lang_grade(src: str, xaml: str) -> dict:
+    """纯函数：PS 源码 + XAML → 文案表覆盖面判定（自检直接喂样本）。"""
+    m = _UI_LANG_TABLE_RE.search(src)
+    keys, empty_val, en_key = set(), [], []
+    if m:
+        for k, v in _UI_LANG_KEY_RE.findall(m.group(1)):
+            keys.add(k)
+            if not v.strip():
+                empty_val.append(k)
+            if not re.search(r"[\u4e00-\u9fff]", k):
+                en_key.append(k)          # 键必须是中文原文
+    lit = set()
+    for attr in ("Text", "Content", "ToolTip"):
+        for mm in re.finditer(rf'{attr}="([^"]*)"', xaml):
+            v = mm.group(1).strip()
+            if re.search(r"[\u4e00-\u9fff]", v):
+                lit.add(v)
+    return {"table_keys": sorted(keys), "xaml_literals": sorted(lit),
+            "untranslated": sorted(lit - keys), "empty_value": sorted(empty_val),
+            "non_chinese_key": sorted(en_key)}
+
+
+_UI_LANG_SELFTEST_CASES = (
+    # (期望未覆盖数, 期望空值数, 期望非中文键数, 源码, XAML)
+    # 闭环：XAML 的文案在表里
+    (0, 0, 0, '$script:UI_LANG_TABLE = @{\n  "主页" = "Home"\n}\n', '<TextBlock Text="主页"/>'),
+    # XAML 多了一条、表里没有 → 漏翻（这一片存在的理由）
+    (1, 0, 0, '$script:UI_LANG_TABLE = @{\n  "主页" = "Home"\n}\n', '<TextBlock Text="主页"/><Button Content="设置"/>'),
+    # 值写空 → 切到英文会变成空白按钮
+    (0, 1, 0, '$script:UI_LANG_TABLE = @{\n  "主页" = ""\n}\n', '<TextBlock Text="主页"/>'),
+    # 键写成了英文 → 切回中文会失败（键必须是中文原文）；注意"漏翻"信号**同时**亮是正确的
+    # （表里没有中文键 ⇒ XAML 那条中文自然没被覆盖），跟页面名那片"两个信号一起亮是对的"同一口径。
+    (1, 0, 1, '$script:UI_LANG_TABLE = @{\n  "Home" = "Home"\n}\n', '<TextBlock Text="主页"/>'),
+    # 表里多出的键（动态句/列表项）是合法的，不许报
+    (0, 0, 0, '$script:UI_LANG_TABLE = @{\n  "主页" = "Home"\n  "（未选择）" = "(nothing selected)"\n}\n',
+     '<TextBlock Text="主页"/>'),
+)
+
+
+def _ui_lang_selftest() -> str:
+    bad = []
+    for want_u, want_e, want_k, src, xaml in _UI_LANG_SELFTEST_CASES:
+        g = _ui_lang_grade(src, xaml)
+        if len(g["untranslated"]) != want_u:
+            bad.append(f"漏翻 {want_u}→{g['untranslated']}")
+        if len(g["empty_value"]) != want_e:
+            bad.append(f"空值 {want_e}→{g['empty_value']}")
+        if len(g["non_chinese_key"]) != want_k:
+            bad.append(f"非中文键 {want_k}→{g['non_chinese_key']}")
+    if bad:
+        return "FAIL: " + " | ".join(bad)
+    return (f"PASS（{len(_UI_LANG_SELFTEST_CASES)} 例：闭环/XAML 多一条/值空/键非中文/表多出键合法）")
+
+
 def audit_launcher_refs() -> dict:
     """启动器引用完整性（见上方 J 项说明）。文件不存在时明确报错，不假装通过。"""
     p = ROBOT / "launcher" / "Launcher.ps1"
@@ -941,6 +1004,9 @@ def audit_launcher_refs() -> dict:
     _wjs = _read(ROBOT / "launcher" / "web" / "app.js")
     _wht = _read(ROBOT / "launcher" / "web" / "index.html")
     out["web_selftest"] = _web_ids_selftest()
+    # J 第四片：界面文案表（全局语言切换）的覆盖面
+    out.update({f"ui_{k}": v for k, v in _ui_lang_grade(src, m.group(1)).items()})
+    out["ui_selftest"] = _ui_lang_selftest()
     if not _wjs.strip() or not _wht.strip():
         out["web_error"] = ("读不到 launcher/web/app.js 或 index.html——"
                             "框架自带样板，两份都必须在（否则本片静默通过）")
@@ -2394,6 +2460,23 @@ def main() -> int:
             print(f"        ❌ 无人绑定：{n}")
     _wst = _lc.get("web_selftest", "—")
     print(f"   {'✅' if str(_wst).startswith('PASS') else '❌'} 皮肤网页闭包自检：{_wst}")
+    # J 第四片：界面文案表覆盖面（全局语言切换）
+    _uu = _lc.get("ui_untranslated") or []
+    _ue = _lc.get("ui_empty_value") or []
+    _uk = _lc.get("ui_non_chinese_key") or []
+    print(f"   界面文案表：XAML 中文字面量 {len(_lc.get('ui_xaml_literals') or [])} 条 ｜ 表键 {len(_lc.get('ui_table_keys') or [])} 条")
+    print(f"   {'✅' if not _uu else '❌'} 每个 XAML 界面文案都在语言表里"
+          f"（漏翻不会报错，只会在英文界面上留中文）：{len(_uu)} 条未覆盖")
+    for n in _uu:
+        print(f"        ❌ 未覆盖：{n[:60]}")
+    print(f"   {'✅' if not _ue else '❌'} 语言表的值都不为空（空值=切过去变空白按钮）：{len(_ue)} 条")
+    for n in _ue:
+        print(f"        ❌ 空值：{n[:60]}")
+    print(f"   {'✅' if not _uk else '❌'} 语言表的键都是中文原文（键写成英文=切回中文失败）：{len(_uk)} 条")
+    for n in _uk:
+        print(f"        ❌ 非中文键：{n[:60]}")
+    _ust = _lc.get("ui_selftest", "—")
+    print(f"   {'✅' if str(_ust).startswith('PASS') else '❌'} 界面文案表自检：{_ust}")
 
     print("=" * 68)
     print("K. 文档契约（docs/接口文档.md ⟷ 代码）：文档承诺的路由/字段必须真存在")

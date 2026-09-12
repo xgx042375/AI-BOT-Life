@@ -633,6 +633,13 @@ for _vk, _vv in _v16.VOICES.items():
     if _vv.get("lang") != "zh" or not _vv.get("emo_refs"):
         continue
     import json as _json, os as _os
+    # 2026-09-12 修：**占位音色（无权重）不该让套件崩**——随仓示例包 example.voice 的 gpt/sovits/ref_dir
+    # 是三个占位绝对路径（公开面只带格式、不带权重），磁盘上没有 refs 文件。原写法无条件 open()
+    # 会 FileNotFoundError **打断整节测试**（后面断言一条不跑，却只表现为"少了若干 PASS"，比 FAIL 更难发现）。
+    # 判据改为"有素材才判"：目录在→断言照旧（对真实音色仍有牙）；不在→当作占位音色，跳过并留痕。
+    if not _os.path.isdir(str(_vv.get("ref_dir") or "")):
+        print(f"  [SKIP] 语音zh-emo_refs条目存在({_vk})：占位音色（参考音目录不存在）")
+        continue
     _refkeys = set(_json.load(open(_os.path.join(_vv["ref_dir"], _vv["refs"]), encoding="utf-8")).keys())
     check(f"语音zh-emo_refs条目存在({_vk})", all(_r in _refkeys for _r in _vv["emo_refs"].values()))
 _rq_od = _v16._voice_request("odin", "t2", "你好。", "中文")
@@ -3135,7 +3142,7 @@ try:
           and "onFrame(seg) !== false" in _gjs50 and "Live2D" in _gjs50)
     check("50 enqueueSeg委托分支", "if (galRendererFrame(item)) return;" in _gjs50
           and "galSegToUnits(item);" in _gjs50 and "galRendererStop();" in _gjs50)
-    check("50 gal.html v=7", "gal.js?v=7" in _ghtml50 and "gal.js?v=6" not in _ghtml50)
+    check("50 gal.html v=8", "gal.js?v=8" in _ghtml50 and "gal.js?v=7" not in _ghtml50)
 
     # ---- 50-6..50-13 沿用 50-0 已重定向的 tmp 双包根（重定向前移见本节最前；finally 恢复）----
 

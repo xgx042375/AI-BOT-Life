@@ -217,6 +217,11 @@ Two consequences you will actually hit:
   then the top bar's **Operators** entry (and `cmd:"operators"`) opens **your** view — the launcher pushes
   `page:"opera"` and you render it. Without that flag the framework's native operator page is used instead.
   Either way only **one** operator page is visible to the user.
+- **Language follows the launcher** (global language switch, 2026-09-12): `state.json` gains a `lang` field
+  (`zh` / `en`, set in the launcher's settings page). Your skin should switch its own copy accordingly — the
+  generic sample marks elements with `data-i18n="key"` plus one `STR` table (no duplicated page, so nothing drifts);
+  when linking to the GAL page pass the value along (`?lang=<value>`), which that page understands too.
+  **A missing `lang` field means Chinese** (compatible with older launchers).
 - **Home always comes back to your entry file.** The top bar's **Home** re-navigates the WebView to your
   `manifest.entry` if it is showing something else (GAL page, or a failed load). Don't assume your page stays
   resident for the whole session — keep state in `state.json` polling rather than in-page globals.

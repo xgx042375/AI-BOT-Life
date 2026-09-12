@@ -98,6 +98,7 @@ The step order in `start.ps1`:
 | Start options | Live danmaku / playback switch | `.env` `LIVE_DANMAKU_ENABLED` / `LIVE_AUDIO_PLAYBACK` | restart |
 | Start options | Keep chat-app mode across restarts | `.env` `WEBGAL_CHAT_PERSIST` | restart |
 | Start options | Skin | the `skin` key of `data/launcher.json` | **re-navigates on save** (no restart needed) |
+| Start options | UI language (Chinese / English) | the `lang` key of `data/launcher.json` | **immediate** (chosen in Settings; the skin page and GAL page follow) |
 | Model & API | Backend type (10 presets) | `.env` `LLM_PROVIDER` (`local` / `openai_compat`) | restart |
 | Model & API | Apply preset ↦ the three boxes | only **fills base_url + the suggested model name into the input boxes** (nothing is persisted; you still have to save) | —— |
 | Model & API | **Profile** (local / online, new 2026-09-12) | the two sets live in `data/launcher.json` as `llmProfiles.{local,online}`; switching a profile only loads its values into the three boxes and **leaves `.env` alone** | —— |

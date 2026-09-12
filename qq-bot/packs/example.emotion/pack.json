@@ -8,9 +8,9 @@
   "license": "CC0-1.0",
   "compat": { "core_api": ">=1.0" },
   "tones": [
-    { "word": "得意", "voice": { "temp": 0.9, "speed": 1.08, "semi": 0.5 } },
+    { "word": "雀跃", "voice": { "temp": 0.9, "speed": 1.08, "semi": 0.5 } },
     { "word": "困倦", "voice": { "temp": 0.85, "speed": 0.92, "semi": -0.5 } },
     { "word": "欲言又止", "voice": {} }
   ],
-  "note": "随仓示例包：演示 robot-pack-v1 **情绪包（type=emotion）** 的最小结构——额外情绪基调只写在 pack.json 的 tones 段里，没有额外文件。字段（word/sprite_word/voice 三元组）与合并纪律见 docs/接口文档.md §3.6；读取它的加载器是 qq-bot/core/packs.py 的 tones_index()，带完整 voice 的词再由 plugins/voice 的 apply_pack_merges() 以 setdefault 并进 EMO_PARAMS（**内置 9 类永远优先**，包词不覆盖内置词）。\n\n· voice 是 GPT-SoVITS 的调音三元组：temp 温度 / speed 语速 / semi 半音偏移。「得意」= 略降温度、略提语速、升半音；「困倦」= 反向（降速、降调、提高随机性）；「欲言又止」故意留空 voice —— 空 {} 完全合法 = 只扩文案/差分层，**不进声调表**。\n· 三条示例都不写 sprite_word：本包没声明 card.key，而 sprite_word 要落进 spriteMap[卡键] 才有归属（core/packs.py 的 _build_tones 会带上 card_key）。要连差分图一起扩，请在自己的**卡包**里写 tones 并声明 sprite_word → 素材词，或另做一个 gal 舞台包供图。\n· 口径边界：LLM 情绪分类的 9 类口径**暂不扩**（战斗/高冷/讥讽/温柔/无语/娇嗔/疑问/纯H/傲娇），新词走 bot 回复里【基调：两三字】自标直通路径；word 会被钳到 6 字以内。\n· 做自己的包：复制本目录改名，改 pack.json 的 name 与 tones 即可（type=emotion 的包不需要任何额外文件）。"
+  "note": "随仓示例包：演示 robot-pack-v1 **情绪包（type=emotion）** 的最小结构——额外情绪基调只写在 pack.json 的 tones 段里，没有额外文件。字段（word/sprite_word/voice 三元组）与合并纪律见 docs/接口文档.md §3.6；读取它的加载器是 qq-bot/core/packs.py 的 tones_index()，带完整 voice 的词再由 plugins/voice 的 apply_pack_merges() 以 setdefault 并进 EMO_PARAMS（**内置 9 类永远优先**，包词不覆盖内置词）。\n\n· voice 是 GPT-SoVITS 的调音三元组：temp 温度 / speed 语速 / semi 半音偏移。「雀跃」= 略降温度、略提语速、升半音；「困倦」= 反向（降速、降调、提高随机性）；「欲言又止」故意留空 voice —— 空 {} 完全合法 = 只扩文案/差分层，**不进声调表**。\n· 三条示例都不写 sprite_word：本包没声明 card.key，而 sprite_word 要落进 spriteMap[卡键] 才有归属（core/packs.py 的 _build_tones 会带上 card_key）。要连差分图一起扩，请在自己的**卡包**里写 tones 并声明 sprite_word → 素材词，或另做一个 gal 舞台包供图。\n· 口径边界：LLM 情绪分类的 9 类口径**暂不扩**（战斗/高冷/讥讽/温柔/无语/娇嗔/疑问/纯H/傲娇），新词走 bot 回复里【基调：两三字】自标直通路径；word 会被钳到 6 字以内。\n· 做自己的包：复制本目录改名，改 pack.json 的 name 与 tones 即可（type=emotion 的包不需要任何额外文件）。"
 }

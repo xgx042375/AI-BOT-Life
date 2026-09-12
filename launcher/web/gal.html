@@ -9,21 +9,23 @@
 	<link rel="stylesheet" href="/gal/assets/gal.css?v=2" onerror="(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='gal.css';document.head.appendChild(l);})()">
 </head>
 <body>
-	<div id="boot-veil"><div class="veil-text">正在连接…</div></div>
+	<!-- 语言（?lang=en）见 gal.js 顶部 GAL_STR：data-i18n = 文案键，data-i18n-ph = placeholder 键。
+	     标签内联中文=无参默认（JS 未跑到也不留白）；加载后由 applyLangHtml() 按语言覆写。 -->
+	<div id="boot-veil"><div class="veil-text" data-i18n="veil">正在连接…</div></div>
 
 	<!-- 顶部常驻控件：三态模式切换 + 状态徽标 + 功能小按钮 -->
 	<header id="top-bar">
 		<div id="mode-switch">
-			<button type="button" class="seg-btn" data-mode="gal">GAL</button>
-			<button type="button" class="seg-btn" data-mode="qq">纯QQ</button>
-			<button type="button" class="seg-btn" data-mode="chat">聊天软件</button>
+			<button type="button" class="seg-btn" data-mode="gal" data-i18n="modeGal">GAL</button>
+			<button type="button" class="seg-btn" data-mode="qq" data-i18n="modeQq">纯QQ</button>
+			<button type="button" class="seg-btn" data-mode="chat" data-i18n="modeChat">聊天软件</button>
 		</div>
 		<div id="status-strip"></div>
 		<nav id="top-actions">
-			<button type="button" class="top-btn" id="btn-history">回想</button>
-			<button type="button" class="top-btn" id="btn-lifelog">生活轨迹</button>
-			<button type="button" class="top-btn" id="btn-opera">干员切换</button>
-			<button type="button" class="top-btn" id="btn-home">返回启动器</button>
+			<button type="button" class="top-btn" id="btn-history" data-i18n="btnHistory">回想</button>
+			<button type="button" class="top-btn" id="btn-lifelog" data-i18n="btnLifelog">生活轨迹</button>
+			<button type="button" class="top-btn" id="btn-opera" data-i18n="btnOpera">干员切换</button>
+			<button type="button" class="top-btn" id="btn-home" data-i18n="btnHome">返回启动器</button>
 		</nav>
 	</header>
 
@@ -45,8 +47,8 @@
 			<div id="nameplate"></div>
 			<div id="dialog-text"></div>
 			<div id="input-row">
-				<input type="text" id="msg-input" class="text-input" placeholder="输入…" maxlength="2000" autocomplete="off">
-				<button type="button" id="btn-send" class="send-btn">发送</button>
+				<input type="text" id="msg-input" class="text-input" data-i18n-ph="inpDialogue" placeholder="输入…" maxlength="2000" autocomplete="off">
+				<button type="button" id="btn-send" class="send-btn" data-i18n="btnSend">发送</button>
 			</div>
 		</div>
 	</div>
@@ -63,8 +65,8 @@
 			</div>
 			<div id="chat-log"></div>
 			<div id="chat-input-row">
-				<input type="text" id="chat-input" class="text-input" placeholder="输入消息…" maxlength="2000" autocomplete="off">
-				<button type="button" id="chat-send" class="send-btn">发送</button>
+				<input type="text" id="chat-input" class="text-input" data-i18n-ph="inpChat" placeholder="输入消息…" maxlength="2000" autocomplete="off">
+				<button type="button" id="chat-send" class="send-btn" data-i18n="btnSend">发送</button>
 			</div>
 		</div>
 	</div>
@@ -73,29 +75,29 @@
 	<div id="qq-panel">
 		<div id="qq-card">
 			<div id="qq-dot"></div>
-			<div id="qq-title">纯 QQ 模式运行中</div>
-			<div id="qq-desc">QQ 端一切照常；本页面在此模式下不收发消息，可随时切换到 GAL 或聊天软件模式。</div>
+			<div id="qq-title" data-i18n="qqTitle">纯 QQ 模式运行中</div>
+			<div id="qq-desc" data-i18n="qqDesc">QQ 端一切照常；本页面在此模式下不收发消息，可随时切换到 GAL 或聊天软件模式。</div>
 			<div id="qq-actions">
-				<button type="button" class="send-btn" id="btn-qq-gal">切到 GAL 模式</button>
-				<button type="button" class="top-btn" id="btn-qq-chat">切到聊天软件</button>
+				<button type="button" class="send-btn" id="btn-qq-gal" data-i18n="qqBtnGal">切到 GAL 模式</button>
+				<button type="button" class="top-btn" id="btn-qq-chat" data-i18n="qqBtnChat">切到聊天软件</button>
 			</div>
 		</div>
 	</div>
 
 	<!-- 覆盖层：回想 / 生活轨迹 -->
 	<div class="overlay" id="overlay-history">
-		<div class="ov-head"><span class="ov-title">回想</span><button type="button" class="ov-close" id="hist-close">关闭</button></div>
+		<div class="ov-head"><span class="ov-title" data-i18n="ovHistoryTitle">回想</span><button type="button" class="ov-close" id="hist-close" data-i18n="btnClose">关闭</button></div>
 		<div class="ov-body" id="hist-body"></div>
 	</div>
 	<div class="overlay" id="overlay-lifelog">
-		<div class="ov-head"><span class="ov-title">生活轨迹</span><button type="button" class="ov-close" id="lifelog-close">关闭</button></div>
+		<div class="ov-head"><span class="ov-title" data-i18n="ovLifelogTitle">生活轨迹</span><button type="button" class="ov-close" id="lifelog-close" data-i18n="btnClose">关闭</button></div>
 		<div class="ov-body" id="lifelog-body"></div>
 	</div>
 
 	<div id="toast-box"></div>
 	<audio id="tts-audio" preload="auto"></audio>
 
-	<script src="/gal/assets/gal.js?v=7"></script>
+	<script src="/gal/assets/gal.js?v=8"></script>
 	<script>
 		// 兜底：非 bot serve（file:// 或静态目录直开）时回退到同目录相对资源
 		(function () {

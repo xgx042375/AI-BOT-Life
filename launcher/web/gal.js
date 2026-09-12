@@ -7,6 +7,139 @@
 
 window.__GAL_BOOTED__ = true; /* gal.html 页尾脚本据此判断是否回退加载同目录相对资源 */
 
+/* ============================== 语言表（?lang= 开关） ==============================
+ * 语言来源：URL 查询参数 lang（启动器皮肤页以 /gal?ent=generic&lang=en 调用）；
+ * 无参 / 未知值 / file:// 直开 = 中文（默认语言不变）。本页语言在加载时定死，
+ * 运行期不切换（一次应用足够），故无监听、无重渲染钩子。
+ *
+ * html 节 = 静态标签页（gal.html）的原文案，由 applyLangHtml() 在启动时按下表覆写；
+ * 其余键 = gal.js 运行期写入 DOM 的文案（toast / 空态 / placeholder / 状态徽标）。
+ * zh 与 en 键集必须严格一致（缺失键在中文侧显示为空 / 在英文侧露中文，都是回归）。
+ * 注释一律保留中文；字符串值不含任何第三方作品专名。 */
+var GAL_LANG = (function () {
+	var m = location.search.match(/[?&]lang=([^&]*)/);
+	return (m && decodeURIComponent(m[1]).toLowerCase() === 'en') ? 'en' : 'zh';
+})();
+
+var GAL_STR = {
+	zh: {
+		html: {
+			veil:           '正在连接…',
+			modeGal:        'GAL',
+			modeQq:         '纯QQ',
+			modeChat:       '聊天软件',
+			btnHistory:     '回想',
+			btnLifelog:     '生活轨迹',
+			btnOpera:       '干员切换',
+			btnHome:        '返回启动器',
+			inpDialogue:    '输入…',
+			btnSend:        '发送',
+			inpChat:        '输入消息…',
+			qqTitle:        '纯 QQ 模式运行中',
+			qqDesc:         'QQ 端一切照常；本页面在此模式下不收发消息，可随时切换到 GAL 或聊天软件模式。',
+			qqBtnGal:       '切到 GAL 模式',
+			qqBtnChat:      '切到聊天软件',
+			ovHistoryTitle: '回想',
+			ovLifelogTitle: '生活轨迹',
+			btnClose:       '关闭'
+		},
+		badgeMood:        '心情·',
+		you:              '你',
+		quoteOpen:        '「',
+		quoteClose:       '」',
+		quoteBy:          ' ——',
+		busyHint:         '上一条回复还在生成中，请稍候',
+		notConnected:     '未连接到服务',
+		sendFail:         '发送失败：',
+		authFailTitle:    '认证失败：',
+		authBadToken:     'token 无效',
+		authRetry:        '，重新获取中…',
+		errBusy:          '上一条回复还在进行中，请稍候再发',
+		errTitle:         '出错：',
+		errUnknown:       '未知',
+		badResponse:      '响应格式异常',
+		voiceSkipped:     '语音跳过：',
+		voiceTimeout:     '语音请求超时',
+		emptyResponse:    '空响应',
+		autoplayBlocked:  '浏览器拦截了语音自动播放，本行跳过',
+		launcherOnly:     '请从启动器内使用',
+		loading:          '读取中…',
+		noRecords:        '暂无记录',
+		histEmpty:        '（本会话暂无回想记录）',
+		fetchFail:        '读取失败：',
+		veilConnectFail:  '无法连接服务（',
+		veilRetry:        '），3 秒后重试…'
+	},
+	en: {
+		html: {
+			veil:           'Connecting…',
+			modeGal:        'Novel',
+			modeQq:         'QQ only',
+			modeChat:       'Messenger',
+			btnHistory:     'History',
+			btnLifelog:     'Life log',
+			btnOpera:       'Operator',
+			btnHome:        'Launcher',
+			inpDialogue:    'Type a message…',
+			btnSend:        'Send',
+			inpChat:        'Type a message…',
+			qqTitle:        'QQ-only mode is running',
+			qqDesc:         'Everything continues as usual on the QQ side; this page neither sends nor receives messages in this mode. Switch to Novel or Messenger at any time.',
+			qqBtnGal:       'Switch to Novel mode',
+			qqBtnChat:      'Switch to Messenger',
+			ovHistoryTitle: 'History',
+			ovLifelogTitle: 'Life log',
+			btnClose:       'Close'
+		},
+		badgeMood:        'Mood · ',
+		you:              'You',
+		quoteOpen:        '“',
+		quoteClose:       '”',
+		quoteBy:          ' — ',
+		busyHint:         'The previous reply is still generating, please wait',
+		notConnected:     'Not connected to the service',
+		sendFail:         'Send failed: ',
+		authFailTitle:    'Authentication failed: ',
+		authBadToken:     'invalid token',
+		authRetry:        ', fetching a new one…',
+		errBusy:          'The previous reply is still in progress, please send again later',
+		errTitle:         'Error: ',
+		errUnknown:       'unknown',
+		badResponse:      'unexpected response format',
+		voiceSkipped:     'Voice skipped: ',
+		voiceTimeout:     'voice request timed out',
+		emptyResponse:    'empty response',
+		autoplayBlocked:  'The browser blocked autoplay, skipping this line',
+		launcherOnly:     'Please use this page from inside the launcher',
+		loading:          'Loading…',
+		noRecords:        'No records yet',
+		histEmpty:        '(no history in this session)',
+		fetchFail:        'Load failed: ',
+		veilConnectFail:  'Cannot reach the service (',
+		veilRetry:        '), retrying in 3 seconds…'
+	}
+};
+
+/* 当前语言文案集（启动即定，不再变） */
+function T() { return GAL_STR[GAL_LANG] || GAL_STR.zh; }
+
+/* 静态标签覆写：data-i18n = 键（textContent）、data-i18n-ph = 键（placeholder）。
+ * 键缺失时保持 html 原文案（中文），不写空串——宁可露中文也不留白块。 */
+function applyLangHtml() {
+	var t = T().html || {};
+	document.documentElement.lang = (GAL_LANG === 'en') ? 'en' : 'zh-CN'; /* 与所选语言一致（无障碍/字体回退） */
+	var els = document.querySelectorAll('[data-i18n]');
+	for (var i = 0; i < els.length; i++) {
+		var k = els[i].getAttribute('data-i18n');
+		if (t[k] !== undefined) els[i].textContent = t[k];
+	}
+	var phs = document.querySelectorAll('[data-i18n-ph]');
+	for (var j = 0; j < phs.length; j++) {
+		var pk = phs[j].getAttribute('data-i18n-ph');
+		if (t[pk] !== undefined) phs[j].setAttribute('placeholder', t[pk]);
+	}
+}
+
 /* ============================== 素材配置口 ============================== */
 var ASSETS = {
 	/* 默认背景：走 WebView2 虚拟主机映射（app.local -> launcher/web）的绝对地址。
@@ -223,7 +356,7 @@ function renderStatus() {
 	if (S.persona && S.persona.name) badge(S.persona.name);
 	badge(S.scene);
 	badge(S.doing);
-	badge(S.mood ? '心情·' + S.mood : '', 'mood');
+	badge(S.mood ? T().badgeMood + S.mood : '', 'mood'); /* 前缀随语言（?lang=） */
 	S.states.forEach(function (t) { badge(t, 'st'); });
 	el('chat-head-name').textContent = personaName();
 	renderChatHeadAvatar();
@@ -263,7 +396,8 @@ function rollQuote() {
 	if (!list.length) { line.style.display = 'none'; return; }
 	line.style.display = 'block'; /* CSS 默认 none：须显式打开（''会回落到 CSS 的 none） */
 	var pick = list[Math.floor(Math.random() * list.length)];
-	line.textContent = '「' + pick.q + '」' + (pick.by ? ' ——' + pick.by : '');
+	var t = T(); /* 引号与出处前缀随语言：中文「」/ ——，英文 “”/ — */
+	line.textContent = t.quoteOpen + pick.q + t.quoteClose + (pick.by ? t.quoteBy + pick.by : '');
 }
 
 /* ---------- 三态模式视图切换 ---------- */
@@ -553,7 +687,7 @@ function vnShowPage() {
 		if (tok !== VN.epoch || myGen !== TT.gen) return; /* 已翻页/换轮/点击跳过：丢弃 */
 		hideTyping();
 		if (res.ok) { VN.voices[VN.idx] = res.b64; playWav(res.b64, function () {}); }
-		else { toastVoiceSkip('语音跳过：' + res.err); }
+		else { toastVoiceSkip(T().voiceSkipped + res.err); }
 		typeTokens(parts, done);
 	});
 }
@@ -763,8 +897,8 @@ function setBusy(b) {
 	el('chat-input').disabled = b;
 	el('btn-send').disabled = b;
 	el('chat-send').disabled = b;
-	el('msg-input').placeholder = b ? '…' : '输入…';
-	el('chat-input').placeholder = b ? '…' : '输入消息…';
+	el('msg-input').placeholder = b ? '…' : T().html.inpDialogue;
+	el('chat-input').placeholder = b ? '…' : T().html.inpChat;
 }
 
 /* ---------- 发言 ---------- */
@@ -772,10 +906,10 @@ function sendMessage(inputId) {
 	var inp = el(inputId);
 	var text = (inp.value || '').trim();
 	if (!text) return;
-	if (S.busy) { toast('上一条回复还在生成中，请稍候'); return; }
+	if (S.busy) { toast(T().busyHint); return; }
 	if (!sendWs({ type: 'msg', text: text })) return;
 	inp.value = '';
-	pushHistory('你', 'user', text);
+	pushHistory(T().you, 'user', text);
 	if (S.mode === 'chat') appendBubble('user', text);
 }
 
@@ -783,9 +917,9 @@ function sendMessage(inputId) {
 function sendWs(obj) {
 	if (S.ws && S.ws.readyState === 1) {
 		try { S.ws.send(JSON.stringify(obj)); return true; }
-		catch (e) { toast('发送失败：' + e.message); return false; }
+		catch (e) { toast(T().sendFail + e.message); return false; }
 	}
-	toast('未连接到服务');
+	toast(T().notConnected);
 	return false;
 }
 
@@ -839,7 +973,7 @@ function handleFrame(ev) {
 			setBusy(false); /* 盲审 P2-2：轮中断线重连后不残留 busy 锁（服务端轮任务已随断线收尾） */
 			break;
 		case 'auth_err':
-			toast('认证失败：' + (m.reason || 'token 无效') + '，重新获取中…');
+			toast(T().authFailTitle + (m.reason || T().authBadToken) + T().authRetry);
 			S.token = '';
 			fetchState(); /* 拿到 token 后 connectWS 会顶掉旧重连计时 */
 			break;
@@ -879,7 +1013,7 @@ function handleFrame(ev) {
 			applyState(m);
 			break;
 		case 'err':
-			toast(m.reason === 'busy' ? '上一条回复还在进行中，请稍候再发' : ('出错：' + (m.reason || '未知')));
+			toast(m.reason === 'busy' ? T().errBusy : (T().errTitle + (m.reason || T().errUnknown)));
 			break;
 		case 'pong':
 			break;
@@ -977,7 +1111,7 @@ function playWav(b64, fin) {
 	au.src = 'data:audio/wav;base64,' + b64;
 	var p = au.play();
 	if (p && p.catch) p.catch(function () {
-		toast('浏览器拦截了语音自动播放，本行跳过');
+		toast(T().autoplayBlocked);
 		fin();
 	});
 }
@@ -993,7 +1127,7 @@ function requestTts(text, cb) {
 		cb(res);
 	}
 	timer = setTimeout(function () {
-		finish({ ok: false, err: '语音请求超时' });
+		finish({ ok: false, err: T().voiceTimeout });
 		if (ctrl) { try { ctrl.abort(); } catch (e) {} }
 	}, VN_TTS_TIMEOUT_MS);
 	fetch(HTTP_BASE + '/gal/tts', {
@@ -1003,9 +1137,9 @@ function requestTts(text, cb) {
 		signal: ctrl ? ctrl.signal : undefined
 	}).then(function (r) { return r.json(); }).then(function (j) {
 		if (j && j.wav_b64) finish({ ok: true, b64: j.wav_b64 });
-		else finish({ ok: false, err: (j && j.err) || '空响应' });
+		else finish({ ok: false, err: (j && j.err) || T().emptyResponse });
 	}).catch(function (e) {
-		finish({ ok: false, err: (e && e.name === 'AbortError') ? '语音请求超时' : e.message });
+		finish({ ok: false, err: (e && e.name === 'AbortError') ? T().voiceTimeout : e.message });
 	});
 }
 
@@ -1022,12 +1156,19 @@ function isOverlayOpen() { return !!document.querySelector('.overlay.open'); }
 function _renderHistory(items) {
 	var box = el('hist-body');
 	box.textContent = '';
+	if (!items || !items.length) { /* 空态：两语言都提示（原先空白一片） */
+		var none = document.createElement('div');
+		none.className = 'ov-loading';
+		none.textContent = T().histEmpty;
+		box.appendChild(none);
+		return;
+	}
 	items.forEach(function (h) {
 		var d = document.createElement('div');
 		d.className = 'hist-item';
 		var w = document.createElement('span');
 		w.className = 'who ' + (h.kind === 'user' ? 'who-user' : 'who-bot');
-		w.textContent = h.kind === 'user' ? '你' : (h.who || 'AI');
+		w.textContent = h.kind === 'user' ? T().you : (h.who || 'AI');
 		d.appendChild(w);
 		if (h.kind === 'text') { /* 保留（动作）斜体样式 */
 			parseText(h.text).forEach(function (p) {
@@ -1056,14 +1197,14 @@ function openHistory() {
 	box.textContent = '';
 	var loading = document.createElement('div');
 	loading.className = 'ov-loading';
-	loading.textContent = '读取中…';
+	loading.textContent = T().loading;
 	box.appendChild(loading);
 	openOverlay('overlay-history');
 	fetch(HTTP_BASE + '/gal/history?limit=100').then(function (r) {
 		if (!r.ok) throw new Error('HTTP ' + r.status);
 		return r.json();
 	}).then(function (rounds) {
-		if (!Array.isArray(rounds)) throw new Error('响应格式异常');
+		if (!Array.isArray(rounds)) throw new Error(T().badResponse);
 		var items = [];
 		rounds.forEach(function (rd) {
 			(rd && Array.isArray(rd.items) ? rd.items : []).forEach(function (it) {
@@ -1087,13 +1228,13 @@ function openLifelog() {
 	body.textContent = '';
 	var loading = document.createElement('div');
 	loading.className = 'ov-loading';
-	loading.textContent = '读取中…';
+	loading.textContent = T().loading;
 	body.appendChild(loading);
 	fetch(HTTP_BASE + '/gal/lifelog?limit=200').then(function (r) {
 		if (!r.ok) throw new Error('HTTP ' + r.status);
 		return r.json();
 	}).then(function (arr) {
-		if (!Array.isArray(arr)) throw new Error('响应格式异常');
+		if (!Array.isArray(arr)) throw new Error(T().badResponse);
 		body.textContent = '';
 		var list = arr.slice().sort(function (a, b) { /* 倒序：最新在上 */
 			return (Number(b.ts) || 0) - (Number(a.ts) || 0); /* ts 为浮点秒，数值倒序 */
@@ -1101,7 +1242,7 @@ function openLifelog() {
 		if (!list.length) {
 			var empty = document.createElement('div');
 			empty.className = 'ov-loading';
-			empty.textContent = '暂无记录';
+			empty.textContent = T().noRecords;
 			body.appendChild(empty);
 			return;
 		}
@@ -1121,7 +1262,7 @@ function openLifelog() {
 		body.textContent = '';
 		var err = document.createElement('div');
 		err.className = 'ov-loading';
-		err.textContent = '读取失败：' + e.message;
+		err.textContent = T().fetchFail + e.message;
 		body.appendChild(err);
 	});
 }
@@ -1131,7 +1272,7 @@ function goLauncher(hash) {
 	try {
 		var inWebview = (location.protocol === 'http:' || location.protocol === 'https:') &&
 			location.host === '127.0.0.1:8080';
-		if (!inWebview) { toast('请从启动器内使用'); return; }
+		if (!inWebview) { toast(T().launcherOnly); return; }
 		/* 干员（#opera）：2026-09-12 订正——**皮肤自带干员页就用皮肤的**（ark 的 #view-opera/detail.html
 		 * 是用户自己设计的界面），所以这里照旧做 URL 导航回皮肤入口的 #opera 锚点，
 		 * 不再改走框架页。框架原生干员页只是"皮肤没提供"时的兜底（皮肤包规范 §2 `operaPage` / §9）。 */
@@ -1145,7 +1286,7 @@ function goLauncher(hash) {
 		if (hash === '#opera') url = base + '?from=gal#opera';
 		location.href = url;
 	} catch (e) {
-		toast('请从启动器内使用');
+		toast(T().launcherOnly);
 	}
 }
 
@@ -1172,7 +1313,7 @@ function fetchState() {
 		applyState(st);
 		connectWS();
 	}).catch(function (e) {
-		veilText('无法连接服务（' + e.message + '），3 秒后重试…');
+		veilText(T().veilConnectFail + e.message + T().veilRetry);
 		setTimeout(fetchState, 3000);
 	});
 }
@@ -1230,6 +1371,7 @@ function bindEvents() {
 }
 
 function boot() {
+	applyLangHtml(); /* 启动即按 ?lang= 覆写静态标签（GAL_LANG 在文件顶部解析，此处是唯一读表入口） */
 	document.documentElement.style.setProperty('--char-color', ASSETS.charColor);
 	if (GALR && typeof GALR.init === 'function') { /* 外部渲染器初始化（Live2D 约定；异常不拦启动） */
 		try { GALR.init(el('stage')); } catch (e) {}

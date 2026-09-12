@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.88"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.89"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -233,6 +233,226 @@ function Update-LlmProfileNote {
         }
         $t.Text = ($lines -join "`n")
     } catch {}
+}
+
+# ---------------- 界面语言（zh / en · 2026-09-12 用户裁决"做全局语言切换"） ----------------
+# 三条设计决定，都是为了"能验证 + 不引入第二份真相"：
+#   ① **表的键是中文原文**（zh→en 单向维护）。切换回中文靠"记住原文"（$script:uiOrig 注册表），
+#      不写第二张反查表——两张表必然漂移。
+#   ② **翻译作用在"显示出口"**（界面树），不是 35 处调用点。XAML 静态文案、ListBox 条目、
+#      代码里拼出来的句子，全都在树上被扫到（含变量插值的句子走 $UI_LANG_PATTERNS 正则表）。
+#      这样做的好处：漏翻会**看得见**（界面上留着中文），而不是散落在代码里没人发现；
+#      将来新增界面文案也一样自动被覆盖，不必记得同步。
+#   ③ 审计 J 项加一片：**XAML 里的每个中文字面量都必须在表里**（单向、零噪声、正负例自检）。
+#      它保证"静态界面"这一层的覆盖率是机器判定的，不靠人肉点数。
+$script:UI_LANG_TABLE = @{
+    # —— 顶栏导航 / 全局按钮 ——
+    "◈ 主页" = "◈ Home"; "← 主页" = "← Home"; "干员" = "Operators"; "设置" = "Settings"
+    "内容包" = "Content packs"; "运行状态" = "Runtime status"; "日志" = "Log"; "组件" = "Components"; "关于" = "About"
+    "▶ 启动" = "▶ Start"; "■ 停止" = "■ Stop"
+    # —— 设置页 ——
+    "启动设置" = "Settings"; "启动选项" = "Startup options"
+    "启动本地推理引擎（LLM）" = "Start the local inference engine (LLM)"
+    "启动语音（TTS 服务）" = "Start voice (TTS service)"
+    "直播开关" = "Live-stream switches"
+    "B 站直播弹幕接入（LIVE_DANMAKU_ENABLED）" = "Bilibili live chat (danmaku) input (LIVE_DANMAKU_ENABLED)"
+    "TTS 语音本地回放到直播音频（LIVE_AUDIO_PLAYBACK）" = "Play TTS audio into the live-stream mix (LIVE_AUDIO_PLAYBACK)"
+    "聊天软件模式跨重启保留" = "Keep chat-app mode across restarts"
+    "皮肤（主页外观）" = "Skin (home page look)"
+    "插件管理（已装插件 / 快速安装）" = "Pack manager (installed / quick install)"
+    "模型与接口" = "Model & API"; "配置档" = "Profile"; "后端类型" = "Backend type"
+    "接口地址 URL" = "API base URL"; "模型名" = "Model name"; "拉取型号" = "Fetch models"
+    "套用预设 ↦ 三格" = "Preset ↦ boxes"; "激活此档 ↦ 写入 .env" = "Activate ↦ write .env"
+    "三格 ↦ 存入此档" = "Boxes ↦ save to profile"
+    "身份" = "Identity"; "主人 QQ" = "Owner QQ"; "主人昵称" = "Owner nickname"
+    "我确认要更换主人 QQ（必须同步迁移记忆库，否则等于换了个全新用户）" = "I confirm I am changing the owner QQ (you must run the memory migration, otherwise it is a brand-new user)"
+    "生成与思考" = "Generation & thinking"; "思考模式" = "Thinking mode"
+    "保存  SAVE" = "Save"; "说明" = "Notes"
+    "＊ 所有 .env 项保存后都需重启机器人才生效（Python 进程启动时才读配置，不热加载）。" = "＊ Every .env item takes effect only after restarting the bot (the Python process reads its config at startup; it is not hot-reloaded)."
+    "＊ 直播开关：写入 qq-bot\.env。保存后需重启机器人（先停止再启动）。" = "＊ Live switches: written to qq-bot\.env; restart the bot afterwards (stop, then start)."
+    "＊ 聊天软件模式跨重启保留：写入 WEBGAL_CHAT_PERSIST。GAL 模式不受此开关影响，始终不跨重启。" = "＊ Keep chat-app mode across restarts: writes WEBGAL_CHAT_PERSIST. GAL mode is unaffected and never persists across restarts."
+    "＊ 皮肤：写 data\launcher.json 的 skin 键，保存后立即重新导航主页视图（不必重启）。" = "＊ Skin: writes the `skin` key of data\launcher.json; the home view re-navigates immediately on save (no restart needed)."
+    "＊ 模型与接口：本地引擎=llama-server(11434)，模型名仅作标识；API=任意 OpenAI 兼容端点（url / key / 模型名三格照填）。切换后需重启机器人。" = "＊ Model & API: local engine = llama-server (11434), where the model name is just a label; API = any OpenAI-compatible endpoint (fill the three boxes: URL / key / model name). Restart the bot after switching."
+    "＊ 「套用预设」：选中后端类型后点它，会把该家的 base_url 与建议模型名填进三格（Key 留空自填），填完仍可自由改。" = "＊ Preset: pick a backend type and click it — its base_url plus a suggested model name fill the three boxes (the key is left to you). Everything stays editable."
+    "＊ 协议边界：全部预设都走 OpenAI 兼容协议。原生 Anthropic / Gemini 本项目不写转换代码——请在本机跑一个协议代理（LiteLLM / llm-rosetta 等），把代理地址填到「接口地址 URL」。" = "＊ Protocol boundary: every preset speaks the OpenAI-compatible protocol. This project writes no converters for native Anthropic / Gemini — run a protocol proxy locally (LiteLLM / llm-rosetta, …) and put the proxy address in 'API base URL'."
+    "＊ SUPERUSERS 在 .env 里必须写成 JSON 数组，例：SUPERUSERS=['10001']（真实文件里用双引号）。保存时自动按此格式写入；手工改 .env 时务必照此格式——写成裸数字会让机器人启动失败（启动器侧却看不出问题）。" = "＊ In .env, SUPERUSERS must be a JSON array, e.g. SUPERUSERS=['10001'] (use double quotes in the real file). Saving writes that format automatically; if you edit .env by hand, keep it — a bare number makes the bot fail to start while the launcher still looks fine."
+    "＊ 改 QQ 号 = 换身份：记忆 / 关系数值 / 事实 / 人设选择全部按 user_id 隔离，直接改 .env 会全部断链。正确流程＝① 勾选左侧确认框再保存；② 先跑迁移工具 qq-bot\tools\migrate_uid.py --from 旧QQ --to 新QQ --dry 看各表影响行数；③ 去掉 --dry 落盘执行（工具自动备份 memory.db）；④ 重启机器人。" = "＊ Changing the QQ number changes the identity: memory, relationship stats, facts and persona choice are all keyed by user_id, so editing .env directly breaks every link. Correct order: (1) tick the confirmation box on the left, then save; (2) run the migration tool qq-bot\tools\migrate_uid.py --from OLD --to NEW --dry to see how many rows each table is affected; (3) run it without --dry to apply (it backs up memory.db automatically); (4) restart the bot."
+    "＊ 思考模式：自决（默认）=删除该 uid 的键；恒定开启/关闭=把该 uid 锁成 on / off，与聊天里 /思考 开|关 等价。写入 data\think_mode.json，需重启机器人生效。" = "＊ Thinking mode: Self (default) deletes that uid's key; Always on / Always off locks it to on / off, equivalent to /思考 on|off in chat. Writes data\think_mode.json and takes effect after restarting the bot."
+    "＊ 换 QQ 有二次确认：不勾选左侧确认框则 QQ 号不写入，其余项照常保存。" = "＊ Changing the QQ number needs confirmation: unless the checkbox on the left is ticked, the QQ number is not written; the other items still save."
+    # —— 干员页 ——
+    "干员一览" = "Operators"; "设为启动人设" = "Set as start persona"
+    # —— 日志页 ——
+    "运行日志" = "Runtime log"; "看全文尾部（不勾=仅报错）" = "Tail the full log (unchecked = errors only)"; "刷新" = "Refresh"
+    # —— 内容包 / 插件页 ——
+    "插件管理" = "Pack manager"; "从文件夹安装" = "Install from folder"; "从 zip 安装" = "Install from zip"
+    "刷新列表" = "Refresh list"; "作者" = "Author"; "许可" = "License"; "来源" = "Source"; "目录" = "Directory"
+    "装了什么（读包内文件得出）" = "What it contains (read from the pack)"; "生效条件" = "Takes effect"; "名称" = "Name"
+    # —— 状态页 ——
+    "当前场景" = "Current scene"; "服务状态" = "Service status"
+    "心跳时间线（滚动翻阅 · 最近 100 条）" = "Heartbeat timeline (last 100 entries)"
+    "仅停机器人（LLM 保持）" = "Stop bot only (keep the LLM)"
+    # —— 组件页 ——
+    "依赖与组件" = "Dependencies & components"; "提供什么" = "What it provides"
+    "缺了会怎样（降级路径）" = "What breaks without it (fallback path)"; "组件明细" = "Components"
+    "重新检测" = "Re-detect"; "打开组件目录" = "Open component folder"; "打开下载页" = "Open download page"
+    # —— 关于页 ——
+    "QQ AI 陪伴机器人（框架 + 启动器）" = "QQ AI companion bot (framework + launcher)"
+    "启动器版本" = "Launcher version"; "核心接口版本 CORE_API_VERSION" = "Core API version CORE_API_VERSION"
+    "框架作者" = "Framework author"; "安装根目录" = "Install root"; "当前皮肤" = "Current skin"
+    "名称 / 标识" = "Name / id"; "皮肤作者" = "Skin author"; "皮肤目录" = "Skin directory"
+    "源码 / 发布页" = "Source / releases"; "框架" = "Framework"; "第三方组件" = "Third-party components"
+    "见安装根下 docs\THIRD_PARTY.md（模型 / 语音 / 引擎 / 前端库各自许可）" = "See docs\THIRD_PARTY.md under the install root (licenses for the models / voice / engine / front-end libraries)"
+    "发行条款" = "Distribution terms"
+    "见安装根下 LICENSE（含第三方 IP 素材的处置约定）" = "See LICENSE under the install root (including how third-party IP assets are handled)"
+    # —— 顶栏服务灯 tooltip ——
+    "推理引擎 11434" = "Inference engine 11434"; "记忆服务 11435" = "Memory service 11435"
+    "QQ 协议侧（NapCat）" = "QQ protocol side (NapCat)"; "机器人本体 8080" = "Bot itself 8080"
+    # —— 运行期固定句（Show-Msg / 列表项；带变量的走下面的模式表）——
+    "已有操作进行中，请稍候…" = "An operation is already running, please wait…"
+    "已有操作进行中，请稍候" = "An operation is already running, please wait"
+    "正在启动全部…（引擎就绪约 30-60 秒）" = "Starting everything… (the engine is ready in about 30-60 s)"
+    "正在停止全部（含 LLM，显存释放）…" = "Stopping everything (including the LLM; VRAM is released)…"
+    "正在退出并清空全部进程（含 LLM 引擎，显存释放）…" = "Exiting and clearing every process (including the LLM engine; VRAM is released)…"
+    "该组件是外部程序，没有安装根内的目录" = "This component is an external program and has no folder inside the install root"
+    "该组件没有可直接打开的下载页" = "This component has no download page to open directly"
+    "机器人未启动：GAL 页要先让 bot 跑起来（顶栏「▶ 启动」，约 30-60 秒）" = "The bot is not running: the GAL page needs it up first (top bar ▶ Start, about 30-60 s)"
+    "（未发现任何已装件——四类各自的「放哪里」见下面各组的提示行）" = "(Nothing installed — each of the four groups below says where its files belong)"
+    "（读不到 launcher\deps.json——依赖矩阵缺失，无法检测）" = "(launcher\deps.json is unreadable — the dependency matrix is missing, cannot detect anything)"
+    "（未选择）" = "(nothing selected)"; "在左侧点一个条目看详情。" = "Click an item on the left to see its details."
+    "未声明" = "not declared"; "（未设置）" = "(not set)"; "（暂无人设卡数据——等待启动器 state.json 提供）" = "(No persona cards yet — waiting for the launcher's state.json)"
+    "警告" = "Warning"; "错误" = "Error"
+    "⚠（正在启动全部…）" = "⚠ (starting everything…)"
+    "⚠（正在停止全部…）" = "⚠ (stopping everything…)"
+    "界面语言" = "UI language"; "中文" = "中文"; "英文" = "English"
+}
+# 带变量插值的句子：正则 + 替换（$1… 为捕获组）。**只加"看得见"的整句**，
+# 别把短词也塞进来（短词走精确表，正则会误伤）。
+$script:UI_LANG_PATTERNS = @(
+    @('^正在启动全部…（引擎就绪约 30-60 秒）$', 'Starting everything… (the engine is ready in about 30-60 s)'),
+    @('^正在停止全部（含 LLM，显存释放）…$', 'Stopping everything (including the LLM; VRAM is released)…'),
+    @('^正在停止全部（含 LLM）…$', 'Stopping everything (including the LLM)…'),
+    @('^正在停止全部…$', 'Stopping everything…'),
+    @('^正在停止机器人…$', 'Stopping the bot…'),
+    @('^正在退出…$', 'Exiting…'),
+    @('^正在启动全部…$', 'Starting everything…'),
+    @('^正在载入…$', 'Loading…'),
+    @('^就绪 (\d+) / 缺失 (\d+)（缺的都可以缺——每项都有降级路径，见右侧说明）$', 'Ready $1 / missing $2 (all of them are optional — each has a fallback, see the notes on the right)'),
+    @('^已切换人设：(.+)（bot 在线切换，无需重启）$', 'Switched persona: $1 (switched live, no restart needed)'),
+    @('^已设为主用人设：(.+)（重启机器人后生效）$', 'Set as the main persona: $1 (takes effect after restarting the bot)'),
+    @('^已激活【(.+)】档：(.+)$', 'Activated profile [$1]: $2'),
+    @('^已载入【(.+)】档的值到三格（\*\*尚未写入 \.env\*\*）。(.+)$', 'Loaded the [$1] profile into the three boxes (**not written to .env yet**). $2'),
+    @('^三格已存入【(.+)】档（.*launcher\.json；\*\*未动 \.env\*\*）。$', 'The three boxes were saved into the [$1] profile (launcher.json; .env untouched).'),
+    @('^已取到 (\d+) 个型号（下拉里选一个即写入模型名）：(.+)$', 'Fetched $1 models (pick one in the dropdown to fill the model name): $2'),
+    @('^内容包 (\d+) · 舞台包 (\d+) · 皮肤 (\d+) · 插件 (\d+)$', 'Content packs $1 · Stage packs $2 · Skins $3 · Plugins $4'),
+    @('^页面加载失败，已返回启动器主页：(.+)$', 'The page failed to load; returned to the launcher home: $1'),
+    @('^页面加载失败：(.+)（启动器主页也打不开——检查 launcher\\web 是否完整）$', 'The page failed to load: $1 (the launcher home will not open either — check that launcher\web is complete)'),
+    @('^切换失败：(.+)（bot 无此卡或未注册）$', 'Switch failed: $1 (the bot has no such card or it is not registered)'),
+    @('^安装失败：(.+)$', 'Install failed: $1'),
+    @('^打开失败：(.+)$', 'Open failed: $1'),
+    @('^目录不存在：(.+)（把组件装到这里，或按右侧『装法』操作）$', 'No such folder: $1 (install the component there, or follow the "how to install" note on the right)'),
+    @('^API 模式需要至少填写『接口地址 URL \+ 模型名』——模型段未保存$', 'API mode needs at least "API base URL + model name" — the model section was not saved'),
+    @('^写入失败（检查 data 目录权限）$', 'Write failed (check the permissions of the data folder)'),
+    @('^正在：(.+)$', 'Doing: $1'),
+    @('^心情：(.+)    今天打算：(.+)$', 'Mood: $1    Plan for today: $2'),
+    @('^当前生效（\.env）：(.+)$', 'Live now (.env): $1'),
+    @('^本档【(.+)】(.+)$', 'This profile [$1]$2'),
+    @('^→ 一致：本档就是当前生效的配置。$', '→ In sync: this profile is what is live.'),
+    @('^→ ⚠️ 不一致：(.+)$', '→ ⚠️ Out of sync: $1'),
+    @('^✗ (.+)$', '✗ $1'), @('^⚠️ (.+)$', '⚠️ $1'), @('^  （暂无——(.+)）$', '  (none yet — $1)')
+)
+function Get-UiLang {
+    # 语言存 data/launcher.json 的 lang 键（gitignored 本机状态）；缺省 zh。
+    # 只认 zh/en 两个值——未知值一律按 zh（宁可不翻，也不要出现半截英文界面）。
+    try {
+        $c = Get-LauncherCfg
+        if ($c.ContainsKey("lang") -and ([string]$c["lang"]) -eq "en") { return "en" }
+    } catch {}
+    return "zh"
+}
+function Set-UiLang($lang) {
+    $lang = if ($lang -eq "en") { "en" } else { "zh" }
+    try {
+        $d = @{ llm = [bool]$window.FindName("chkLlm").IsChecked; voice = [bool]$window.FindName("chkVoice").IsChecked }
+    } catch { $d = @{ llm = $true; voice = $true } }
+    try { $sel = $window.FindName("CmbSkin"); if ($sel -and $sel.SelectedItem) { $d["skin"] = [string]$sel.SelectedItem.Tag } } catch {}
+    try {
+        $profKeep = Get-LlmProfiles
+        $d["llmProfile"] = [string]$profKeep.active
+        $d["llmProfiles"] = @{ local = $profKeep.local; online = $profKeep.online }
+    } catch {}
+    $d["lang"] = $lang
+    Set-LauncherCfg $d
+    $script:uiLang = $lang
+    return $lang
+}
+function Convert-UiText($s, $lang) {
+    # 译文转换的唯一入口：先查精确表，再走正则表。**只处理"含中文且表里有"的串**，
+    # 其余原样返回——绝不猜、绝不做逐词替换（那会把英文界面弄得面目全非）。
+    if (-not $s -or $s.Length -eq 0) { return $s }
+    $t = [string]$s
+    if ($lang -eq "en") {
+        if ($script:UI_LANG_TABLE.ContainsKey($t)) { return $script:UI_LANG_TABLE[$t] }
+        foreach ($p in $script:UI_LANG_PATTERNS) {
+            try { if ($t -match $p[0]) { $r = [regex]::Replace($t, $p[0], $p[1]); if ($r -ne $t) { return $r } } } catch {}
+        }
+        return $t
+    }
+    return $t
+}
+function Apply-UiLang($lang) {
+    # 在**界面树**上换文（静态 XAML 文案 + ListBox 条目 + 代码拼出的句子都在树上被扫到）。
+    # 切回中文靠注册表里的原文，不写第二张表；首次见到某个中文字符串时把原文记下来。
+    try {
+        if (-not $window) { return }
+        $script:uiOrig = if ($script:uiOrig) { $script:uiOrig } else { @{} }
+        $walk = { param($el)
+            try {
+                if ($el -is [System.Windows.Controls.TextBlock] -or $el -is [System.Windows.Controls.TextBox]) {
+                    $cur = [string]$el.Text
+                    if ($cur -match '[\u4e00-\u9fff]') {
+                        if (-not $script:uiOrig.ContainsKey($el)) { $script:uiOrig[$el] = $cur }
+                        if ($lang -eq "en") { $el.Text = Convert-UiText $cur "en" }
+                    } elseif ($lang -eq "zh" -and $script:uiOrig.ContainsKey($el)) {
+                        if ($cur -eq (Convert-UiText $script:uiOrig[$el] "en")) { $el.Text = $script:uiOrig[$el] }
+                    }
+                }
+                if ($el -is [System.Windows.Controls.ContentControl] -and $el.Content -is [string]) {
+                    $cur = [string]$el.Content
+                    if ($cur -match '[\u4e00-\u9fff]') {
+                        if (-not $script:uiOrig.ContainsKey($el)) { $script:uiOrig[$el] = $cur }
+                        if ($lang -eq "en") { $el.Content = Convert-UiText $cur "en" }
+                    } elseif ($lang -eq "zh" -and $script:uiOrig.ContainsKey($el)) {
+                        if ($cur -eq (Convert-UiText $script:uiOrig[$el] "en")) { $el.Content = $script:uiOrig[$el] }
+                    }
+                }
+                if ($el -is [System.Windows.Controls.Primitives.ButtonBase] -or $el -is [System.Windows.Controls.Control]) {
+                    $tt = [string]$el.ToolTip
+                    if ($tt -match '[\u4e00-\u9fff]' -and $lang -eq "en") {
+                        $el.ToolTip = Convert-UiText $tt "en"
+                    }
+                }
+                # ListBox / ComboBox 的字符串条目：动态生成的"整句"主要落在这里
+                if ($el -is [System.Windows.Controls.ItemsControl]) {
+                    for ($i = 0; $i -lt $el.Items.Count; $i++) {
+                        $it = $el.Items[$i]
+                        if ($it -is [string] -and $it -match '[\u4e00-\u9fff]' -and $lang -eq "en") {
+                            $el.Items[$i] = Convert-UiText $it "en"
+                        }
+                    }
+                }
+            } catch {}
+            foreach ($ch in ([System.Windows.LogicalTreeHelper]::GetChildren($el))) { & $walk $ch }
+        }
+        & $walk $window
+    } catch {}
+}
+function Get-UiLangItems {
+    # 语言下拉的两项（Content 用**各自语言的自称**，Tag 是存盘值）：中文项在两种语言下都写"中文"，
+    # 英文项都写"English"——这是语言选择器的通行做法（用户可能正看着自己不熟的语言找出口）。
+    return @(
+        @{ text = "中文"; tag = "zh" },
+        @{ text = "English"; tag = "en" }
+    )
 }
 
 # ---------------- 皮肤包（2026-09-10 Phase2：launcher-skin-v1，规范见 docs/皮肤包接口规范-v1.md） ----------------
@@ -1316,7 +1536,10 @@ function Get-OwnerPersona {
 
             <!-- ============ 左列：控件（紧凑，无长提示） ============ -->
             <StackPanel Grid.Column="0" Width="440" HorizontalAlignment="Left">
-              <TextBlock Text="启动选项" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4"/>
+              <!-- 2026-09-12 全局语言切换：这一行是入口；语言的实现见文件前部 Apply-UiLang（树上换文） -->
+              <TextBlock Text="界面语言" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4"/>
+              <ComboBox x:Name="CmbLang" Width="160" Height="26" Margin="0,8,0,0" HorizontalAlignment="Left" VerticalContentAlignment="Center"/>
+              <TextBlock Text="启动选项" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4" Margin="0,24,0,0"/>
               <CheckBox x:Name="chkLlm" Content="启动本地推理引擎（LLM）" Foreground="#E6E1D4" Margin="0,12,0,0" FontSize="12"/>
               <CheckBox x:Name="chkVoice" Content="启动语音（TTS 服务）" Foreground="#E6E1D4" Margin="0,10,0,0" FontSize="12"/>
 
@@ -2250,6 +2473,23 @@ function Refresh-Cfg {
         $u = $window.FindName("TxtApiUrl"); if ($u) { $u.Text = Get-EnvValue "LLM_BASE_URL"; if (-not $u.Text) { $u.Text = Get-EnvValue "OLLAMA_BASE_URL" }; if (-not $u.Text) { $u.Text = "http://127.0.0.1:11434/v1" } }
         $k = $window.FindName("TxtApiKey"); if ($k) { $k.Text = Get-EnvValue "LLM_API_KEY"; if (-not $k.Text) { $k.Text = "ollama" } }
         $m = $window.FindName("TxtModel"); if ($m) { $m.Text = Get-EnvValue "LLM_MODEL"; if (-not $m.Text) { $m.Text = Get-EnvValue "OLLAMA_MODEL" }; if (-not $m.Text) { $m.Text = "gemma" } }
+        # 2026-09-12 界面语言回显 + 应用（放在这一处，Refresh-Cfg 每次进设置页都会跑；幂等）
+        $clg = $window.FindName("CmbLang")
+        if ($clg) {
+            if ($clg.Items.Count -eq 0) {
+                foreach ($li in (Get-UiLangItems)) {
+                    $it = New-Object System.Windows.Controls.ComboBoxItem
+                    $it.Content = [string]$li["text"]; $it.Tag = [string]$li["tag"]
+                    $clg.Items.Add($it) | Out-Null
+                }
+            }
+            $script:uiLang = Get-UiLang
+            $script:langGuard = $true
+            try {
+                foreach ($it in @($clg.Items)) { if ([string]$it.Tag -eq $script:uiLang) { $clg.SelectedItem = $it; break } }
+            } finally { $script:langGuard = $false }
+        }
+        Apply-UiLang $script:uiLang
         # 2026-09-12 配置档回显（2026-09-12 用户报"切在线后再切回去没变"）：
         # 档下拉 + **把活动档的值载进三格**（界面必须跟着档变）+ 状态对照行。
         # 注意顺序：三格先按 .env 填（上一行），再由档覆盖——这样"档"是编辑对象、".env"是生效事实，
@@ -2536,6 +2776,9 @@ function Push-Web {
         $d.__push = $true
         $d.stamp = $script:stamp
         $d.pid = $PID
+        # 界面语言（2026-09-12）：皮肤页据此换文案；GAL 页由皮肤页在 URL 上带 &lang=。
+        # 用内存值（$script:uiLang）而不是每 3 秒读一次配置文件。
+        $d.lang = $(if ($script:uiLang) { $script:uiLang } else { "zh" })
         if ($script:pendingPage) { $d.page = $script:pendingPage }
         $d.cards = try { Get-CardsPayload } catch { @() }
         $d.op = @{ active = [bool]$script:opText; text = "$script:opText" }
@@ -2797,6 +3040,8 @@ BindClick "BtnSaveCfg" ({
         $d["llmProfile"]  = [string]$profKeep.active
         $d["llmProfiles"] = @{ local = $profKeep.local; online = $profKeep.online }
     } catch {}
+    # 界面语言同理：Set-LauncherCfg 整体覆写，不带 lang 键就把语言设置抹回默认（同一类坑）
+    try { $d["lang"] = Get-UiLang } catch {}
     Set-LauncherCfg $d
     # 2026-09-11 热修六：模型与接口写入 LLM_*（core/llm.py 读取）
     # 2026-09-12 配置档修正：① 保存前把三格**回存活动档**（否则这次编辑只进 .env、切档即丢）；
@@ -2915,6 +3160,27 @@ BindClick "BtnApplyPreset" ({
     } catch {}
 })
 # 配置档（2026-09-12）：切换档 = 只改界面（把该档的值载进三格）；激活 = 写 .env；存入 = 三格存回档。
+BindSelect "CmbLang" ({
+    # 语言切换（2026-09-12 全局语言切换）：存 launcher.json → 立刻在界面树上换文 → 重刷当前页
+    # （列表/提示是"生成时"的中文，必须重生成才换得了）→ Push-Web 把 lang 推给皮肤页与 GAL 页。
+    try {
+        if ($script:langGuard) { return }        # Refresh-Cfg 的程序性选中不当作"用户切换"
+        $sel = $window.FindName("CmbLang").SelectedItem
+        if (-not $sel) { return }
+        $lang = Set-UiLang ([string]$sel.Tag)
+        Apply-UiLang $lang
+        try { Refresh-Cfg } catch {}
+        try { Push-Web } catch {}
+        $m = $window.FindName("txtCfgMsg")
+        if ($m) {
+            $m.Text = $(if ($lang -eq "en") {
+                "UI language: English — saved to data\launcher.json; the skin page and the GAL page follow (they re-read state.json / the URL parameter)."
+            } else {
+                "界面语言：中文 —— 已写入 data\launcher.json；皮肤页与 GAL 页随后跟随（它们分别读 state.json 与 URL 参数）。"
+            })
+        }
+    } catch {}
+})
 BindSelect "CmbProfile" ({
     try {
         if ($script:llmProfileGuard) { return }     # 程序性选中（Refresh-Cfg 回显）不当作"用户切换"
@@ -3035,6 +3301,17 @@ $timer.Add_Tick({
     if ($lg -and $lg.Visibility.ToString() -eq "Visible") { try { Refresh-Log $true } catch {} }
 })
 $timer.Start()
+
+# 界面语言：启动即应用一次 + 每 2 秒补翻一次（2026-09-12 全局语言切换）
+# 为什么需要"补翻"：很多文案是**运行期生成**的（Show-Msg、列表项、状态行），它们出现时已经是中文；
+# 在这一层收口就不必去改 30 多处调用点——而且**漏翻会留在界面上看得见**，不会藏进代码里。
+$script:uiLang = Get-UiLang
+$script:uiOrig = @{}
+$script:langGuard = $false
+$langT = New-Object System.Windows.Threading.DispatcherTimer
+$langT.Interval = [TimeSpan]::FromSeconds(2)
+$langT.Add_Tick({ try { Apply-UiLang $script:uiLang } catch {} })
+$langT.Start()
 
 if ($Mode -like "view-*") { try { Show-Page ($Mode -replace "^view-", "") } catch {} }
 $window.ShowDialog() | Out-Null
