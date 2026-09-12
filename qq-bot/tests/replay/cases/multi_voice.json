@@ -1,0 +1,54 @@
+{
+  "name": "multi_voice",
+  "scenario": "多段语音：用户长倾诉（复杂话题展开）时回复具备多句段形态（可切多段语音），且守超长句红线（source=决策日志·语音回复链）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "今天好累啊"
+    },
+    {
+      "role": "assistant",
+      "content": "怎么啦，工作又堆山了？"
+    }
+  ],
+  "input": "别提了，开了三个会，方案还被推翻重来，晚上还得加班，感觉这周都熬不过去了，你说我该怎么办啊",
+  "asserts": [
+    {
+      "type": "min_sentences",
+      "min": 2
+    },
+    {
+      "type": "max_sentence_len",
+      "max": 45
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 320
+    },
+    {
+      "type": "ellipsis_max",
+      "max": 4
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:33:17",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 109,
+      "lines": 1,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 30,
+      "sentences": 4
+    },
+    "attempts": 2,
+    "tone": "温柔",
+    "sample": "辛苦你了……看到这些，真的好心疼。既然决定要加班的话，你就先喝口温水或茶，强迫自己慢下来一点点。那些烦人的方案，我们慢慢再处理，现在最重要的是你要放松一下。要是实在撑不住了，就到我这里来，哪怕只是闭上眼睛坐一会儿也好。"
+  }
+}

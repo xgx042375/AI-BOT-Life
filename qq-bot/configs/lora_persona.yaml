@@ -1,0 +1,43 @@
+# Qwen3-14B 人格 LoRA 训练配置（LLaMA-Factory）
+# 用法: llamafactory-cli train configs/lora_persona.yaml
+model_name_or_path: E:/robot/data/models/hf/Qwen3-14B
+template: qwen3_nothink
+
+# 数据（真实对话积累后：data/train.jsonl；种子数据：data/seed_train.jsonl）
+dataset: rp_train
+dataset_dir: E:/robot/qq-bot/data
+
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 16
+lora_alpha: 32
+lora_target: all
+lora_dropout: 0.05
+
+# QLoRA 4bit（16GB 显存可训 14B）；method 值必须是 bnb（不是 bitsandbytes）
+quantization_bit: 4
+quantization_method: bnb
+# Windows 无 flash-attn，用 PyTorch SDPA（慢一点，省显存）
+flash_attn: sdpa
+gradient_checkpointing: true
+
+cutoff_len: 1024
+learning_rate: 2.0e-4
+num_train_epochs: 1
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+optim: adamw_torch
+bf16: true
+
+output_dir: E:/robot/data/models/lora/persona
+overwrite_output_dir: true
+logging_steps: 5
+save_steps: 50
+save_total_limit: 3
+plot_loss: false
+
+# 中文语料推荐：对 Qwen 系列建议关掉自定义语料清洗
+# (数据已是 sharegpt 格式，无需额外处理)

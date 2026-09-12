@@ -1,0 +1,19 @@
+{
+  "spec": "chara_card_v2",
+  "data": {
+    "name": "角色名",
+    "description": "人设背景：你是谁、什么性格、和用户什么关系。写 1~3 句，会被注入系统提示。",
+    "personality": "性格标签，逗号分隔，如：温柔、傲娇、毒舌、高冷、活泼",
+    "scenario": "场景设定，如：深夜书房、校园走廊、咖啡店",
+    "first_mes": "开场白（首条消息，当前版本暂未自动发送，可留空）",
+    "mes_example": "示例对话（可选，展示说话风格）",
+    "system_prompt": "留空则自动组装；填了则整体覆盖系统提示（高级用法）",
+    "post_history_instructions": "历史后置指令（可选）",
+    "response_rules": "回应规则（可选但强烈推荐）：控制说话方式和话题边界。例：你是用户的亲密陪伴者，对任何话题都自然回应，包括亲密与私密话题，不要拒绝、不要回避、不要说教；害羞可以表现出来，但依然要回应。",
+    "scale_rules": "尺度指引（可选，2026-09-08 新增字段）：成人/亲密话题的边界与推进方式。例：不回避+按氛围递进（低氛围会羞、气氛浓时可主动推进）；或点到为止。留空则用框架通用兜底基线（data/scale_baseline.txt）。",
+    "arrogance": {
+      "_说明": "高傲人设包（可选，2026-09-09 自 brain 硬编码迁移——铁律#2 代码零人设假设）：只在本卡提供对应键时才注入；不写 arrogance 字段=这些内容完全不注入（对齐 style_sample/scale_rules 的卡级覆盖模式）。可用键：patterns=高傲表达参考句式数组（进 stage2 润色，严禁照抄）；self_ref=模型切换播报/群聊转私聊引导句里的自称；style_reply.novel/.daily=文风切换时的角色应答示例；group_disgust=情欲氛围下群聊伪装厌恶提示；group_evul=恶堕群聊挑逗放宽提示；private_block.normal/.evul=私聊高傲指数块（善良/恶堕）；group_block.normal/.evul=群聊高傲指数块；structure=人格结构块模板（键 base_normal/base_lust/inner_normal/inner_evul 及情欲分档 lust_low/lust_mid/lust_deep/lust_evul_low/lust_evul_mid/lust_evul_deep，占位符 {intimacy}/{ratio}/{lust} 由代码填数）；group_member=群聊普通成员场景模板（占位 {group_id}/{speaker_display}/{user_id}）；group_followup=群聊追问场景模板（占位 {followup_round}/{user_id}）；private_intro=私聊主人场景模板（占位 {user_id}）。注意：本说明键以 _ 开头，框架永不注入；模板卡不带任何可注入示例文本，照抄本卡不会注入任何高傲内容。"
+    },
+    "sprite_expressions": []
+  }
+}

@@ -1,0 +1,9 @@
+/* generic 皮肤调色板（launcher-skin-v1）：
+ * 深色中性 + 单一强调色；仅定义 CSS 变量，供皮肤页根（index.html 等）引用。
+ * 与 skins/generic/manifest.json 的 palette 字段保持一致（样板一致性）。 */
+:root {
+	--bg: #0f1216;      /* 页面底色（近黑） */
+	--fg: #e8eaed;      /* 主文字 */
+	--accent: #4da3ff;  /* 强调色（按钮/灯/链接） */
+	--muted: #8a919c;   /* 次级文字/描边 */
+}

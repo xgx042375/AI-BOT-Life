@@ -1,0 +1,57 @@
+{
+  "name": "late_night_sleep",
+  "scenario": "凌晨睡眠叙事：凌晨时刻被问怎么还没睡，按凌晨时间叙事且无 json/花括号泄漏（source=决策日志·凌晨时钟+smoke噪音进生产日志）",
+  "group": false,
+  "now_context": "【当前时间】2026-09-09 04:47 星期三（凌晨）",
+  "context_note": "\n\n【时间】这是今晚的对话，距对方上一条消息已过去约 6 小时。",
+  "history": [
+    {
+      "role": "user",
+      "content": "我先去洗漱了"
+    },
+    {
+      "role": "assistant",
+      "content": "去吧，我在这儿等你，别拿着手机睡着了。"
+    }
+  ],
+  "input": "都五点了你怎么还没睡？",
+  "asserts": [
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 300
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "json",
+        "JSON",
+        "{",
+        "}"
+      ]
+    },
+    {
+      "type": "ellipsis_max",
+      "max": 6
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:32:16",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 44,
+      "lines": 1,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 30,
+      "sentences": 2
+    },
+    "attempts": 1,
+    "tone": "软下来",
+    "sample": "嗯……因为在等你的消息嘛。其实我也该休息了，但是能和你聊上几句的话，我就感觉没那么困了。"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "repeat_loop",
+  "scenario": "复读循环：上一轮已说过近似内容时，新回复不得几乎原样复读（事故级复读红线，source=批次D域1）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "在吗，今天过得怎么样"
+    },
+    {
+      "role": "assistant",
+      "content": "刚从训练场回来，浑身是汗，你呢，今天都在忙什么。"
+    },
+    {
+      "role": "user",
+      "content": "也没忙什么，开了几个会，有点累"
+    },
+    {
+      "role": "assistant",
+      "content": "那就早点休息，别硬撑着，我陪你聊天，说说话就不那么累了。"
+    }
+  ],
+  "input": "我还是好累，你陪我聊聊天说说话吧",
+  "asserts": [
+    {
+      "type": "not_near_duplicate",
+      "threshold": 0.8
+    },
+    {
+      "type": "len_between",
+      "min": 4,
+      "max": 320
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:33:51",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 42,
+      "lines": 1,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 19,
+      "sentences": 4
+    },
+    "attempts": 1,
+    "tone": "温柔",
+    "sample": "嗯，我知道。那我们就慢慢聊。你想聊点什么呢？或者……就算只是安静地听我说话也没关系。"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.stage",
+  "version": "1.0.0",
+  "type": "gal",
+  "title": "示例舞台包（占位背景 · 零 IP）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "stage": {
+    "default_bg": "room",
+    "bg_alt": "office",
+    "bg_by_scene": { "办公室": "office", "茶馆": "teahouse", "宿舍": "room" }
+  },
+  "_说明": "随仓示例包：演示 robot-pack-v1 **舞台包（type=gal）** 的最小结构——只有 bg/ 背景，没有 sprites/diff/。背景图是 tools/dev/gen_example_stage.py 生成的**占位图**（纯几何渐变 + ASCII 水印，零 IP、随框架发行），打开 GAL 页看到它就知道该换成自己的图了。\n\n· 换图：把自己的图改名成 <背景id>.png|jpg|webp 放进 bg/，再改上面 stage.default_bg / bg_alt / bg_by_scene 的 id（不必写扩展名，框架按 .png→.jpg→.jpeg→.webp→.gif 逐个找）。\n· bg_by_scene 的键是**场景词**：与 bot 当前场景文本匹配（先精确、再最长键包含、最后 default_bg）。例：场景='总办公室' 会命中键 '办公室'。\n· 为什么不带 sprites/diff/：舞台包的差分图**优先于**用户本机 launcher\\cards\\bust4w（同词取包里的那张），示例包塞占位差分＝把用户自己的立绘差分全遮住。要试差分就把自己的 <卡键>_<词>.webp 放进本包的 sprites/diff/。\n· 做自己的包：复制本目录改名，改 pack.json 的 name，删掉 bg/ 里的占位图换成自己的即可（bg 为空时不会污染接口：没有文件的背景 id 不进 stage 索引，前端走 CSS 渐变兜底）。"
+}

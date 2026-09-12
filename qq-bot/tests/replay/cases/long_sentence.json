@@ -1,0 +1,46 @@
+{
+  "name": "long_sentence",
+  "scenario": "超长句红线：被要求详细展开叙述时，任何一句不得超过 45 字（观感事故级形状红线，source=批次D4）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "你昨天不是去市区了吗"
+    },
+    {
+      "role": "assistant",
+      "content": "对，去配了副新眼镜，顺便逛了逛，累瘫了。"
+    }
+  ],
+  "input": "跟我讲讲呗，从头到尾都说说，坐什么车去的、去了哪些地方、买了什么东西，说得详细点",
+  "asserts": [
+    {
+      "type": "max_sentence_len",
+      "max": 45
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 320
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:32:53",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 273,
+      "lines": 5,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 34,
+      "sentences": 10
+    },
+    "attempts": 2,
+    "tone": "耐心",
+    "sample": "既然你想听的话，那我就慢慢跟你讲喔。\n我先是坐城际列车去市区的，正好赶上通勤高峰，车厢里挤得挺厉害的。为了避开人流，我特意选了一个稍微偏一点的站台。\n到了市区，我先去了专门的眼科诊所，那里有个口碑很不错的镜片加工店。因为之前的镜架有点磨损，所以这次决定彻底换一套新的。\n挑了很久之后，我最后选了一副框子比较稳重的款式。接着我就顺路去附近的商场转了转。其实没想逛那么多啦，但刚好碰到一些挺好看的小物件，就忍不住进去看了看。\n一共买了两个实用的小玩意儿，还有几个在街角摊位上看到的一点点装饰品。不过……真的挺耗精力的，直到回程的时候，我都觉得腿软了。"
+  }
+}

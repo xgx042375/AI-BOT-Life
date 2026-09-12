@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+plugins/brain/__init__.py
+qq_ai_companion.egg-info/PKG-INFO
+qq_ai_companion.egg-info/SOURCES.txt
+qq_ai_companion.egg-info/dependency_links.txt
+qq_ai_companion.egg-info/requires.txt
+qq_ai_companion.egg-info/top_level.txt

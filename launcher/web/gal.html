@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GAL</title>
+	<!-- 正式路径：由 bot serve（http://127.0.0.1:8080/gal，资源走 /gal/assets/）；
+	     若以 file:// 或静态目录直开，由页尾脚本回退到同目录相对文件 -->
+	<link rel="stylesheet" href="/gal/assets/gal.css?v=2" onerror="(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='gal.css';document.head.appendChild(l);})()">
+</head>
+<body>
+	<div id="boot-veil"><div class="veil-text">正在连接…</div></div>
+
+	<!-- 顶部常驻控件：三态模式切换 + 状态徽标 + 功能小按钮 -->
+	<header id="top-bar">
+		<div id="mode-switch">
+			<button type="button" class="seg-btn" data-mode="gal">GAL</button>
+			<button type="button" class="seg-btn" data-mode="qq">纯QQ</button>
+			<button type="button" class="seg-btn" data-mode="chat">聊天软件</button>
+		</div>
+		<div id="status-strip"></div>
+		<nav id="top-actions">
+			<button type="button" class="top-btn" id="btn-history">回想</button>
+			<button type="button" class="top-btn" id="btn-lifelog">生活轨迹</button>
+			<button type="button" class="top-btn" id="btn-opera">干员切换</button>
+			<button type="button" class="top-btn" id="btn-home">返回启动器</button>
+		</nav>
+	</header>
+
+	<!-- gal 模式：三层舞台（背景 z10 / 立绘 z20 / 对话 z30） -->
+	<div id="stage">
+		<div id="bg-layer">
+			<div id="bg-fallback"></div>
+			<img id="bg-img" alt="">
+		</div>
+		<div id="chara-layer">
+			<div id="chara-inner">
+				<img id="chara-a" class="cimg" alt="">
+				<img id="chara-b" class="cimg" alt="">
+				<div id="chara-fallback"></div>
+			</div>
+		</div>
+		<div id="slice-box"></div>
+		<div id="dialog-layer">
+			<div id="nameplate"></div>
+			<div id="dialog-text"></div>
+			<div id="input-row">
+				<input type="text" id="msg-input" class="text-input" placeholder="输入…" maxlength="2000" autocomplete="off">
+				<button type="button" id="btn-send" class="send-btn">发送</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- chat 模式：居中竖屏手机卡片 -->
+	<div id="chat-wrap">
+		<div id="phone">
+			<div id="chat-head">
+				<div id="chat-head-ava"><img id="chat-head-avatar" alt=""><span id="chat-head-ava-fb"></span></div>
+				<div id="chat-head-main">
+					<div id="chat-head-name"></div>
+					<div id="chat-head-quote"></div>
+				</div>
+			</div>
+			<div id="chat-log"></div>
+			<div id="chat-input-row">
+				<input type="text" id="chat-input" class="text-input" placeholder="输入消息…" maxlength="2000" autocomplete="off">
+				<button type="button" id="chat-send" class="send-btn">发送</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- qq 模式：纯 QQ 运行中面板（不出输入框，防双通道身份分裂） -->
+	<div id="qq-panel">
+		<div id="qq-card">
+			<div id="qq-dot"></div>
+			<div id="qq-title">纯 QQ 模式运行中</div>
+			<div id="qq-desc">QQ 端一切照常；本页面在此模式下不收发消息，可随时切换到 GAL 或聊天软件模式。</div>
+			<div id="qq-actions">
+				<button type="button" class="send-btn" id="btn-qq-gal">切到 GAL 模式</button>
+				<button type="button" class="top-btn" id="btn-qq-chat">切到聊天软件</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- 覆盖层：回想 / 生活轨迹 -->
+	<div class="overlay" id="overlay-history">
+		<div class="ov-head"><span class="ov-title">回想</span><button type="button" class="ov-close" id="hist-close">关闭</button></div>
+		<div class="ov-body" id="hist-body"></div>
+	</div>
+	<div class="overlay" id="overlay-lifelog">
+		<div class="ov-head"><span class="ov-title">生活轨迹</span><button type="button" class="ov-close" id="lifelog-close">关闭</button></div>
+		<div class="ov-body" id="lifelog-body"></div>
+	</div>
+
+	<div id="toast-box"></div>
+	<audio id="tts-audio" preload="auto"></audio>
+
+	<script src="/gal/assets/gal.js?v=7"></script>
+	<script>
+		// 兜底：非 bot serve（file:// 或静态目录直开）时回退到同目录相对资源
+		(function () {
+			if (!window.__GAL_BOOTED__) {
+				var l = document.createElement('link');
+				l.rel = 'stylesheet'; l.href = 'gal.css';
+				document.head.appendChild(l);
+				var s = document.createElement('script');
+				s.src = 'gal.js';
+				document.body.appendChild(s);
+			}
+		})();
+	</script>
+</body>
+</html>

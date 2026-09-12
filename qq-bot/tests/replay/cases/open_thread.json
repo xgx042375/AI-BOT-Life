@@ -1,0 +1,50 @@
+{
+  "name": "open_thread",
+  "scenario": "悬挂话题接续：open_thread 感知块注入（聊到一半的潜水话题）后收到短消息，无【悬挂】类标记外泄（source=批次C·P-1 话题悬挂）",
+  "group": false,
+  "context_note": "\n\n【记忆】\n上次你们聊到一半：说想去学潜水，后来被岔开了，一直没下文。想接就自然接上，接不接你定。",
+  "history": [
+    {
+      "role": "user",
+      "content": "早安"
+    },
+    {
+      "role": "assistant",
+      "content": "早呀，今天起得挺早。"
+    }
+  ],
+  "input": "在吗",
+  "asserts": [
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 250
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "【悬挂",
+        "【没聊完"
+      ]
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:33:24",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 14,
+      "lines": 1,
+      "ellipsis": 0,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 7,
+      "sentences": 2
+    },
+    "attempts": 1,
+    "tone": null,
+    "sample": "在的，一直都在。有什么事吗？"
+  }
+}

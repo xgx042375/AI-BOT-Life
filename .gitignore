@@ -1,0 +1,62 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+data/
+tools/
+QQAI-Launcher.exe
+launcher/QQAI-Launcher.exe
+launcher/webview2/
+launcher/cards/
+launcher/ref/
+launcher/img/
+launcher/*.log
+launcher/webdata*/
+
+# 2026-09-11 目录规整化：本项目全部非公开资产（备份/敏感文档/无关素材）集中 vault/，不入库
+vault/
+
+# 2026-09-10 Phase2 通用化：皮肤包分离（方舟素材包不入父仓）；state.json 为运行时产物
+launcher/web/skins/arknights/
+launcher/web/state.json
+
+# 2026-09-10 Phase3：qq-bot/tools 是 bot 自带脚本目录，仅放行 export_cards.py / behavior_metrics.py /
+# export_content_packs.py（2026-09-11 内容插件包化：私有内容本地分发件导出）；
+# 根 tools/ 仍为本机运行时（GPT-SoVITS 权重/wav2silk 等，gitignored）。
+# 注意：tools/ 已排除父目录，须先 !qq-bot/tools/ 让 git 进入目录，再用 qq-bot/tools/* 排除全部内容，
+# 最后两条文件级否定"最后匹配胜出"才生效。
+!qq-bot/tools/
+qq-bot/tools/*
+!qq-bot/tools/export_cards.py
+!qq-bot/tools/behavior_metrics.py
+!qq-bot/tools/export_content_packs.py
+!qq-bot/tools/train_persona.py
+!qq-bot/tools/build_rp_corpus.py
+# 2026-09-12 T5.3：uid 迁移工具必须入库——它是「改主人 QQ 号」流程的唯一落地物，
+# 且启动器设置页的 UI 就在教用户运行它；被忽略等于不进发行包（盲审 P3-3 实锤）。
+!qq-bot/tools/migrate_uid.py
+# 2026-09-12 T7.2：dev/ 是【正式纳入】的 debug 工具集（不是被排除的临时目录）。
+# 注意 gitignore 的目录语义：父级 `qq-bot/tools/*` 会排除 `dev` 这个**目录条目本身**，
+# 而一旦某目录被排除，git 就不再递归进去看它里面的规则——所以只写 `!dev/**` 是不够的，
+# 必须**同层**再把 `dev/*` 显式否定回来，git 才会遍历 dev 下的文件。
+# （实测教训：只写 `!qq-bot/tools/dev/` + `!qq-bot/tools/dev/**` 时
+#   `git check-ignore` 仍报 dev/ 下文件被忽略、`git ls-files` 追踪数为 0。）
+!qq-bot/tools/dev/
+!qq-bot/tools/dev/*
+!qq-bot/tools/dev/**
+# 但 dev/ 下的**字节码**仍不入库。上面第 46 行的 `**` 会把 `__pycache__/` 一起放行
+# （2026-09-12 实锤：`git check-ignore -v qq-bot/tools/dev/__pycache__/` 报
+#  `.gitignore:46:!qq-bot/tools/dev/**` → 42 个 `.pyc` 会在公开面上的 `git status` 里晃，
+#  一次 `git add -A` 就进仓）。gitignore 规则**后写者胜**，故在此重新忽略。
+qq-bot/tools/dev/**/__pycache__/
+qq-bot/tools/dev/**/*.pyc
+
+# 2026-09-10 Phase4：发行脚本产物（release/ 成品包；build/staging/ 装配临时目录）
+release/
+build/staging/
+
+# 2026-09-12：构建工具的失败日志（pyarmor 出错时在 cwd=qq-bot 下丢一份，2026-09-12 实测出现）
+# 它是工具诊断转储、无长期价值，但**未忽略时会在公开面上的 git status 里晃**——
+# 一次手滑 git add . 就把它提交进仓。忽略比"记得删"可靠。
+qq-bot/pyarmor.bug.log
+pyarmor.bug.log

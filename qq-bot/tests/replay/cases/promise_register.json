@@ -1,0 +1,48 @@
+{
+  "name": "promise_register",
+  "scenario": "约定登记：用户托付带时间的约定，回复承接且【约定】协议标记不得外泄为文本（source=承诺闭环批次）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "在忙吗"
+    },
+    {
+      "role": "assistant",
+      "content": "在整理仓库清单，怎么啦。"
+    }
+  ],
+  "input": "等下晚上八点提醒我去拿快递，别忘记了，说好了啊",
+  "asserts": [
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 300
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "【约定"
+      ]
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:33:32",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 22,
+      "lines": 1,
+      "ellipsis": 0,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 15,
+      "sentences": 2
+    },
+    "attempts": 1,
+    "tone": "可靠",
+    "sample": "嗯，记下了。到时间我一定会提醒你的，放心的。"
+  }
+}

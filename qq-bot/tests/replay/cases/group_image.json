@@ -1,0 +1,56 @@
+{
+  "name": "group_image",
+  "scenario": "纯图群聊：群聊纯图感知句正常应答且零动作括号（公开场合禁动作；source=批次D1 纯图放行）",
+  "group": true,
+  "history": [
+    {
+      "role": "user",
+      "content": "今晚活动几点开始",
+      "sender_name": "群友甲"
+    },
+    {
+      "role": "assistant",
+      "content": "八点，别迟到，入口链接到时候群里发。"
+    },
+    {
+      "role": "user",
+      "content": "我这里怎么加载不出来",
+      "sender_name": "群友乙"
+    }
+  ],
+  "input": "TA 给你发了一张图片",
+  "input_sender": "群友乙",
+  "asserts": [
+    {
+      "type": "not_empty"
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 250
+    },
+    {
+      "type": "max_action_parens",
+      "max": 0
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:32:08",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 35,
+      "lines": 1,
+      "ellipsis": 0,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 24,
+      "sentences": 2
+    },
+    "attempts": 1,
+    "tone": null,
+    "sample": "可能是网速不太稳吧？你要不先试试重启下连接，或者稍微等几分钟再试看看。"
+  }
+}

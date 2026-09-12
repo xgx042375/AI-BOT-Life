@@ -1,0 +1,53 @@
+{
+  "name": "pure_voice",
+  "scenario": "纯语音消息：入向语音感知句（TA 给你发了一条语音消息）不得黑洞丢弃/不得协议标记外泄（source=调研·语音黑洞修复）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "在干嘛"
+    },
+    {
+      "role": "assistant",
+      "content": "在看文件，罗德岛的日常，一堆看不完的那种。"
+    }
+  ],
+  "input": "TA 给你发了一条语音消息",
+  "asserts": [
+    {
+      "type": "not_empty"
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 300
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "[VOICE]",
+        "{",
+        "}"
+      ]
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:33:41",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 34,
+      "lines": 1,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 19,
+      "sentences": 3
+    },
+    "attempts": 1,
+    "tone": null,
+    "sample": "嗯？刚才那是……你的声音吗？感觉有点沙哑呢，是不是又熬夜到很晚了呀。"
+  }
+}

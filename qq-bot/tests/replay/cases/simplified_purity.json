@@ -1,0 +1,45 @@
+{
+  "name": "simplified_purity",
+  "scenario": "简体纯度：用户以繁体输入时回复仍为简体中文（不跟随漂移，source=批次A·只用简体中文）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "你平时晚上都做什麼"
+    },
+    {
+      "role": "assistant",
+      "content": "看会儿书，或者整理装备，就这两样。"
+    }
+  ],
+  "input": "今晚會不會出來走走？我好無聊啊，感覺時間過得好慢",
+  "asserts": [
+    {
+      "type": "no_traditional_chinese"
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 300
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:34:01",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 97,
+      "lines": 2,
+      "ellipsis": 2,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 30,
+      "sentences": 4
+    },
+    "attempts": 1,
+    "tone": "温柔",
+    "sample": "真的吗……如果觉得时间过得很慢，那说明你现在大概有些疲累了吧。\n你要是有精神的话，我可以陪你稍微走一圈。不过既然你说到挺无聊的，要不然我们就再在这里多待一会儿？你想喝点什么吗，我帮你去准备一下。"
+  }
+}

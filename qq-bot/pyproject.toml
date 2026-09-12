@@ -1,0 +1,42 @@
+[project]
+name = "qq-ai-companion"
+version = "0.1.0"
+description = "QQ AI 陪伴机器人（NoneBot2 + Ollama 本地模型）"
+requires-python = ">=3.10"
+dependencies = [
+    "nonebot2[fastapi]>=2.3.0",
+    "nonebot-adapter-onebot>=2.4.3",
+    "openai>=1.40.0",
+    "python-dotenv>=1.0.0",
+    # 2026-09-07 P1 补声明：agent 层依赖（graph.py 顶层 import）——曾只在 .venv 手工安装，
+    # 按 pyproject 重建环境会 ImportError → agent 层连带 debug 插件全部静默失效
+    "langgraph>=1.2",
+    "langgraph-checkpoint-sqlite>=3.1",
+    "aiosqlite>=0.22",
+    "loguru>=0.7",  # 2026-09-07 核查补：agent 层直接 import（此前靠 nonebot2 传递依赖带入）
+]
+
+# 2026-09-08 B2：直播弹幕接入（plugins/livesource）可选依赖——只声明不安装；
+# 启用需 .env LIVE_DANMAKU_ENABLED=true 且安装 blivedm（pip install .[live]）
+[project.optional-dependencies]
+live = ["blivedm"]
+
+[tool.nonebot]
+plugins = [
+    "plugins.debug",
+    "plugins.brain",
+    "plugins.qq_avatar",
+    "plugins.correction",
+    "plugins.voice",
+    "plugins.memory",
+    "plugins.persona",
+    "plugins.emotion",
+    "plugins.search",
+    "plugins.sticker",
+    "plugins.fiction",
+    "plugins.webgal",  # 2026-09-09 GAL 前端客户端 bot 侧（批次1'）：新插件注册（load_from_toml 按此清单加载）
+    # 2026-09-10 全项目审计 P1：livesource 此前从未注册——launcher 直播开关写 .env 后整链无消费者。
+    # 模块自述常驻短路设计：LIVE_DANMAKU_ENABLED 缺省/false 加载零副作用；未装 blivedm 时仅 warning。
+    "plugins.livesource",
+]
+

@@ -1,0 +1,18 @@
+{
+  "spec": "robot-pack-v1",
+  "name": "example.sakura",
+  "version": "1.0.0",
+  "type": "card",
+  "title": "樱——星港茶馆看板娘（示例内容包）",
+  "author": "example",
+  "license": "CC0-1.0",
+  "compat": { "core_api": ">=1.0" },
+  "card": {
+    "key": "sakura",
+    "cls": "看板娘",
+    "star": 4,
+    "uni": "STELLAR-TEAHOUSE",
+    "desc": "星港茶馆看板娘 · 本文件是 robot-pack-v1 的活示例（原创角色，零 IP）"
+  },
+  "_说明": "随仓示例包：演示 robot-pack-v1 卡包最小结构（pack.json+card.json 必需；quotes/sprites/world 可选段）。素材文件（sprites/full|bust|diff/<key>_<词>.webp|png）按需补图，缺图=前端回退链兜底。做自己的包：复制本目录改名，改 pack.json 的 name/card.key，换 card.json 人设即可。"
+}

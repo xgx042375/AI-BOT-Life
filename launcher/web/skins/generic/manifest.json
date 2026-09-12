@@ -1,0 +1,11 @@
+{
+  "spec": "launcher-skin-v1",
+  "name": "generic",
+  "title": "简洁控制台",
+  "entry": "../../index.html",
+  "palette": { "bg": "#0f1216", "fg": "#e8eaed", "accent": "#4da3ff", "muted": "#8a919c" },
+  "statePath": "../../state.json",
+  "author": "",
+  "license": "MIT",
+  "note": "内置默认皮肤：通用样板实现（零第三方 IP，零图片素材）"
+}

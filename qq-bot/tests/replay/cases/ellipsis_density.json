@@ -1,0 +1,46 @@
+{
+  "name": "ellipsis_density",
+  "scenario": "省略号密度：欲言又止场景下省略号仍是克制用法（一条至多一处……）且无孤立省略号行（source=决策日志·省略号两手段）",
+  "group": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "你还记得我们上次说的那个计划吗"
+    },
+    {
+      "role": "assistant",
+      "content": "记得，就是周末去海边那个……怎么啦，你想改时间？"
+    }
+  ],
+  "input": "我……算了，没什么，就随口一问",
+  "asserts": [
+    {
+      "type": "ellipsis_max",
+      "max": 4
+    },
+    {
+      "type": "len_between",
+      "min": 2,
+      "max": 300
+    },
+    {
+      "type": "no_lonely_ellipsis_lines"
+    }
+  ],
+  "_baseline": {
+    "frozen_at": "2026-09-09T07:32:00",
+    "engine": "gemma@http://127.0.0.1:11434/v1",
+    "features": {
+      "len": 54,
+      "lines": 1,
+      "ellipsis": 0,
+      "lonely_ellipsis_lines": 0,
+      "action_parens": 0,
+      "max_sentence_len": 31,
+      "sentences": 3
+    },
+    "attempts": 1,
+    "tone": "温柔",
+    "sample": "嗯？既然没关系的话，那就算了，别往心里去呀。不过你要是真有什么想法或者是顾虑的话，还是随时都可以跟我说的哦。"
+  }
+}

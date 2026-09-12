@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: qq-ai-companion
+Version: 0.1.0
+Summary: QQ AI 陪伴机器人（NoneBot2 + Ollama 本地模型）
+Requires-Python: >=3.10
+Requires-Dist: nonebot2[fastapi]>=2.3.0
+Requires-Dist: nonebot-adapter-onebot>=2.4.3
+Requires-Dist: openai>=1.40.0
+Requires-Dist: python-dotenv>=1.0.0

@@ -1,0 +1,208 @@
+{
+  "spec": "qqai-deps-v1",
+  "updated": "2026-09-12",
+  "_说明": "功能→必备组件矩阵的**唯一事实源**。docs/部署指南.md 的表格由 qq-bot/tools/dev/sync_deps_doc.py 从本文件生成；两处不一致时 qq-bot/tools/dev/audit_consistency.py 会报（G 项）。启动器（S5）也读本文件做能力检测——不要在别处再抄一份。",
+  "_核心原则": "没有任何组件是必需的：纯文本/GAL 最小路径在零外部组件下必须可用。required=true 仅指『框架自身跑不起来』。",
+  "features": [
+    {
+      "id": "bot",
+      "name": "机器人本体",
+      "required": true,
+      "provides": "全部功能的地基：HTTP 8080 · 记忆库 · 人设 · GAL 页服务",
+      "detect": { "kind": "port", "value": 8080, "label": "TCP 8080" },
+      "degrade": "不存在替代路径（没有它就没有这个项目）",
+      "components": [
+        {
+          "id": "python-venv",
+          "name": "Python 3.13 + venv 依赖",
+          "path": "qq-bot/.venv",
+          "kind": "dir",
+          "size_mb": 167,
+          "source": "https://www.python.org/downloads/",
+          "source_kind": "官方",
+          "install": "python -m venv qq-bot/.venv  然后  qq-bot\\.venv\\Scripts\\pip install -e qq-bot（或按 pyproject.toml 装依赖）"
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "name": "本地推理引擎（对话模型）",
+      "required": false,
+      "provides": "本地跑对话模型（Gemma 4 12B，端口 11434）",
+      "detect": { "kind": "port", "value": 11434, "label": "TCP 11434 + 进程 llama-server" },
+      "degrade": "改为连外部 API：启动器「模型与接口」里选任一家预设或填自定义端点（LLM_BASE_URL / LLM_API_KEY / LLM_MODEL）。**这是设计内的正路，不是降级**",
+      "components": [
+        {
+          "id": "llama-server",
+          "name": "llama.cpp 运行时（llama-server.exe）",
+          "path": "tools/llama.cpp",
+          "kind": "dir",
+          "size_mb": 1129,
+          "source": "https://github.com/ggml-org/llama.cpp/releases",
+          "source_kind": "GitHub 上游",
+          "install": "解压上游 win-cuda 版到 tools\\llama.cpp\\（本机现用版本见维护手册 §1.3；另有 tools\\llama-new\\ 备用副本，未启用）"
+        },
+        {
+          "id": "gemma-gguf",
+          "name": "对话模型权重（.gguf）",
+          "path": "data/models/gemma4-12b",
+          "kind": "dir",
+          "size_mb": 7039,
+          "source": "上游模型卡（再分发条款须自行确认）",
+          "source_kind": "待核",
+          "install": "放入 data\\models\\gemma4-12b\\；文件名须与 plugins/brain 的 MODELS 表一致（现为 gemma-4-12B-it-heretic-Q4_K_M.gguf）"
+        }
+      ]
+    },
+    {
+      "id": "embed",
+      "name": "记忆向量检索（embedding）",
+      "required": false,
+      "provides": "记忆的语义检索（端口 11435，与引擎同一个 exe 的第二个实例）",
+      "detect": { "kind": "port", "value": 11435, "label": "TCP 11435" },
+      "degrade": "记忆回落到关键词匹配：仍能记住与回忆，只是『意思相近』的联想变弱",
+      "components": [
+        {
+          "id": "embed-gguf",
+          "name": "embedding 模型权重",
+          "path": "data/models/embedding",
+          "kind": "dir",
+          "size_mb": 610,
+          "source": "上游模型卡（Qwen3-Embedding-0.6B）",
+          "source_kind": "待核",
+          "install": "放入 data\\models\\embedding\\Qwen3-Embedding-0.6B-Q8_0.gguf"
+        }
+      ]
+    },
+    {
+      "id": "qq",
+      "name": "QQ 通道（协议端）",
+      "required": false,
+      "provides": "在 QQ 里收发消息（OneBot v11 反向连接，端口 8080 收到 bot）",
+      "detect": { "kind": "process", "value": "NapCat", "label": "进程 NapCat + TCP 8080 可连" },
+      "degrade": "无 QQ 通道：仍可用 GAL 页/网页模式对话（纯文本与视觉小说界面）。**上架发行以 GAL 为主界面即为此设计**",
+      "components": [
+        {
+          "id": "napcat",
+          "name": "NapCat（NTQQ 协议端）",
+          "path": "tools/napcat",
+          "kind": "dir",
+          "size_mb": 325,
+          "source": "https://github.com/NapNeko/NapCatQQ",
+          "source_kind": "GitHub 上游（混合许可，见 THIRD_PARTY.md）",
+          "install": "解压到 tools\\napcat\\；**本框架不自动下载也不代为分发**（内含腾讯 QQ 客户端组件，不可再分发）。安装与 OneBot 连接配置见 docs\\部署指南.md §2.5"
+        }
+      ]
+    },
+    {
+      "id": "tts",
+      "name": "语音合成",
+      "required": false,
+      "provides": "让角色能发语音（GPT-SoVITS 常驻 worker，JSON-lines over stdio）",
+      "detect": { "kind": "path", "value": "tools/GPT-SoVITS-v4-package", "label": "目录存在" },
+      "degrade": "只发文字。启动器「启动语音」开关会自动保持关闭",
+      "components": [
+        {
+          "id": "gptsovits",
+          "name": "GPT-SoVITS 整合包",
+          "path": "tools/GPT-SoVITS-v4-package",
+          "kind": "dir",
+          "size_mb": 37830,
+          "source": "https://github.com/RVC-Boss/GPT-SoVITS",
+          "source_kind": "GitHub 上游（MIT）",
+          "install": "解压整合包到 tools\\GPT-SoVITS-v4-package\\；**权重不随本框架分发**，用户自备"
+        },
+        {
+          "id": "voice-weights",
+          "name": "音色权重（.ckpt/.pth + 参考音）",
+          "path": "data/voices",
+          "kind": "dir",
+          "size_mb": 316,
+          "source": "自训练/自备",
+          "source_kind": "自备",
+          "install": "放进 data\\voices\\<音色键>\\；具体路径写进包 voice.json 或 plugins/voice 的 VOICES 表"
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "name": "直播弹幕投放",
+      "required": false,
+      "provides": "把 B 站弹幕/礼物接进对话（livesource 插件）",
+      "detect": { "kind": "env", "value": "LIVE_DANMAKU_ENABLED", "label": ".env LIVE_DANMAKU_ENABLED 且 blivedm 已装" },
+      "degrade": "该模块整块不加载（零副作用）。缺依赖时自动保持禁用并留一行日志",
+      "components": [
+        {
+          "id": "blivedm",
+          "name": "blivedm（Python 包）",
+          "path": "qq-bot/.venv",
+          "kind": "pip",
+          "size_mb": 1,
+          "source": "PyPI",
+          "source_kind": "PyPI",
+          "install": "qq-bot\\.venv\\Scripts\\pip install blivedm"
+        }
+      ]
+    },
+    {
+      "id": "vts",
+      "name": "Live2D 演出（VTube Studio）",
+      "required": false,
+      "provides": "表情/口型驱动外部 Live2D 模型",
+      "detect": { "kind": "env", "value": "VTS_ENABLED", "label": ".env VTS_ENABLED 且 VTS 在听 8001" },
+      "degrade": "无 Live2D 演出；表情仍以图片表情包形式发送",
+      "components": [
+        {
+          "id": "vtube-studio",
+          "name": "VTube Studio（Steam 应用）",
+          "path": "（外部程序，非本安装根）",
+          "kind": "external",
+          "size_mb": 0,
+          "source": "Steam 商店（付费/免费视版本）",
+          "source_kind": "Steam",
+          "install": "装好后在 VTS 里启用 API（默认端口 8001），再在 .env 打开 VTS_ENABLED=true"
+        }
+      ]
+    },
+    {
+      "id": "webview2",
+      "name": "启动器界面（内嵌浏览器）",
+      "required": false,
+      "provides": "启动器 GUI 里的主页/GAL 页渲染",
+      "detect": { "kind": "path", "value": "launcher/webview2", "label": "目录存在" },
+      "degrade": "启动器仍是可用窗口（WPF 原生页：设置/干员/日志/状态/关于），但主页与 GAL 页不可渲染",
+      "components": [
+        {
+          "id": "wv2-runtime",
+          "name": "Microsoft WebView2 运行时",
+          "path": "launcher/webview2",
+          "kind": "dir",
+          "size_mb": 101,
+          "source": "https://developer.microsoft.com/microsoft-edge/webview2/",
+          "source_kind": "微软官方",
+          "install": "Win11 通常已内置 Evergreen 运行时；本项目另带固定版（launcher\\webview2\\）以免受系统版本波动影响"
+        }
+      ]
+    },
+    {
+      "id": "launcher",
+      "name": "启动器本体",
+      "required": false,
+      "provides": "图形界面（设置/干员/内容包/运行状态/日志/关于）与一键启停",
+      "detect": { "kind": "path", "value": "launcher/QQAI-Launcher.exe", "label": "exe 存在" },
+      "degrade": "用命令行：start.bat 启动、stop.ps1 停止、qq-bot\\.env 手工改配置",
+      "components": [
+        {
+          "id": "launcher-exe",
+          "name": "QQAI-Launcher.exe（ps2exe 产物）",
+          "path": "launcher/QQAI-Launcher.exe",
+          "kind": "file",
+          "size_mb": 1,
+          "source": "本仓源码构建（launcher\\README.md §8）",
+          "source_kind": "自建",
+          "install": "无需安装；源码改了要重编译（ps2exe，需 -STA -x64 -requireAdmin，见 README §8）"
+        }
+      ]
+    }
+  ]
+}

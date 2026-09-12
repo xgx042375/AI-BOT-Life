@@ -1,0 +1,257 @@
+/* QQ AI 启动器 · 简洁控制台（generic 皮肤样板）主页样式。
+ * 深色中性 + 单一强调色；调色板变量定义在 skins/generic/palette.css。
+ * 系统字体栈；零图片素材 / 零外部资源。 */
+* { box-sizing: border-box; }
+
+html, body {
+	margin: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+a { color: var(--accent); text-decoration: none; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 48px;
+	padding: 0 20px;
+	background: rgba(255, 255, 255, 0.03);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	backdrop-filter: blur(4px);
+}
+.brand { font-weight: 600; letter-spacing: 1px; }
+.brand-sub { color: var(--muted); font-size: 12px; margin-left: 8px; }
+.top-actions { display: flex; align-items: center; gap: 12px; }
+.clock { font-family: Consolas, monospace; font-size: 13px; color: var(--muted); }
+
+/* ---------- 主体卡片 ---------- */
+main {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: 20px 20px 40px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+.card {
+	background: #151a21;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 10px;
+	padding: 16px 20px;
+}
+.card h2 {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 2px;
+	color: var(--muted);
+	text-transform: uppercase;
+}
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+/* ---------- 状态区 ---------- */
+.status-row { display: flex; gap: 16px; align-items: flex-start; }
+.portrait {
+	width: 96px;
+	height: 96px;
+	object-fit: cover;
+	object-position: 50% 20%;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	flex: none;
+}
+.status-main { flex: 1; min-width: 0; }
+.lamps { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 12px; }
+.lamp { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.lamp .dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: var(--muted);
+	opacity: 0.5;
+	flex: none;
+	transition: background 0.3s, opacity 0.3s;
+}
+.lamp.on .dot { background: #7cb87c; opacity: 1; box-shadow: 0 0 6px rgba(124, 184, 124, 0.6); }
+.lamp-state { color: var(--muted); font-size: 12px; }
+.lamp.on .lamp-state { color: #7cb87c; }
+.life {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 6px 16px;
+	margin: 0;
+}
+.life div { min-width: 0; }
+.life dt { font-size: 11px; color: var(--muted); }
+.life dd { margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialog {
+	margin: 12px 0 0;
+	padding: 10px 14px;
+	border-left: 3px solid var(--accent);
+	background: rgba(77, 163, 255, 0.07);
+	border-radius: 0 8px 8px 0;
+	font-size: 13px;
+	color: var(--fg);
+}
+
+/* ---------- 控制区 ---------- */
+.ctrl-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+	appearance: none;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--fg);
+	font: inherit;
+	font-size: 13px;
+	padding: 8px 18px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.28); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #081018; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn.danger { border-color: rgba(232, 90, 90, 0.55); color: #e8998f; }
+.btn.danger:hover { background: rgba(232, 90, 90, 0.12); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--fg); background: rgba(255, 255, 255, 0.06); }
+.btn.sm { padding: 2px 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+/* ---------- 人设卡网格 ---------- */
+.card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+	gap: 12px;
+}
+.pcard {
+	position: relative;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	overflow: hidden;
+	cursor: pointer;
+	background: #1a2028;
+	transition: border-color 0.15s, transform 0.15s;
+}
+.pcard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pcard img.bust {
+	display: block;
+	width: 100%;
+	aspect-ratio: 3 / 4;
+	object-fit: cover;
+	object-position: 50% 12%;
+}
+.pcard img.rar {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 22px;
+	height: 22px;
+}
+.pcard .cls-chip-pos {
+	position: absolute;
+	top: 6px;
+	left: 6px;
+	font-size: 10px;
+	padding: 1px 7px;
+	background: rgba(10, 12, 14, 0.78);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	border-radius: 3px;
+}
+.pcard .pname {
+	display: block;
+	padding: 6px 8px;
+	font-size: 12px;
+	font-weight: 600;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---------- 详情弹层 ---------- */
+#detail-layer {
+	position: fixed;
+	inset: 0;
+	z-index: 500;
+	background: rgba(8, 10, 13, 0.72);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+/* [hidden] 属性必须恒胜作者 display——上面的 #detail-layer{display:flex} 会覆盖 UA 默认的
+ * [hidden]{display:none}，导致弹层从加载起常驻可见且为空、全屏遮罩挡死整页交互
+ * （2026-09-11 用户实测阻塞，视觉复现后修复；本规则同时保护 #portrait/#grid-hint 的 hidden 起隐） */
+[hidden] { display: none !important; }
+#detail-box {
+	position: relative;
+	width: min(820px, 94vw);
+	max-height: 88vh;
+	background: #151a21;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 12px;
+	padding: 22px;
+	overflow: auto;
+}
+#detail-close { position: absolute; top: 10px; right: 12px; }
+.detail-body { display: flex; gap: 20px; }
+.detail-imgbox { flex: none; width: 260px; }
+.detail-imgbox img {
+	width: 100%;
+	max-height: 60vh;
+	object-fit: contain;
+	object-position: 50% 0;
+	border-radius: 8px;
+}
+.detail-info { flex: 1; min-width: 0; }
+.detail-uni { font-family: Consolas, monospace; font-size: 11px; letter-spacing: 3px; color: var(--muted); }
+.detail-name { font-size: 26px; font-weight: 700; margin: 6px 0 8px; }
+.detail-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; }
+.cls-chip { font-size: 11px; padding: 1px 8px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 3px; color: var(--muted); }
+#detail-desc { font-size: 13px; color: #c4c9cf; margin: 0 0 16px; }
+#detail-msg { min-height: 18px; }
+
+/* ---------- 操作遮罩 + 警告横幅（契约：window.showWebBlock/hideWebBlock） ---------- */
+#web-blocker {
+	position: fixed;
+	inset: 0;
+	z-index: 900;
+	background: rgba(10, 12, 15, 0.5);
+	display: none;
+	pointer-events: all;
+}
+#web-warnbar {
+	position: absolute;
+	top: 12vh;
+	left: 0;
+	right: 0;
+	padding: 7px;
+	background: repeating-linear-gradient(45deg, #f7c948 0 18px, #1a1a1a 18px 36px);
+	border: 2px solid #1a1a1a;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+#web-warnbar .wb-core {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	background: #101318;
+	padding: 10px 20px;
+}
+#web-warnbar .wb-icon { color: #f7c948; font-size: 24px; font-weight: 700; line-height: 1; }
+#web-warnbar .wb-text { color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-align: center; }
+
+/* ---------- 页脚 ---------- */
+.foot { text-align: center; color: var(--muted); font-size: 11px; padding: 0 0 24px; }
