@@ -1132,25 +1132,16 @@ function goLauncher(hash) {
 		var inWebview = (location.protocol === 'http:' || location.protocol === 'https:') &&
 			location.host === '127.0.0.1:8080';
 		if (!inWebview) { toast('请从启动器内使用'); return; }
-		/* 干员（#opera）：2026-09-12 分层去重——数据面只有框架「干员」页这一份（卡片图/详情/设为启动人设）。
-		 * 启动器内用 postMessage 直接开框架页（两皮肤同一条路，皮肤不必自绘第二套）；
-		 * 拿不到 chrome.webview（外部浏览器）时回落 URL 导航，行为与改造前一致。 */
-		if (hash === '#opera') {
-			try {
-				if (window.chrome && window.chrome.webview) {
-					window.chrome.webview.postMessage({ cmd: 'operators', data: '' });
-					return;
-				}
-			} catch (e) { }
-		}
+		/* 干员（#opera）：2026-09-12 订正——**皮肤自带干员页就用皮肤的**（ark 的 #view-opera/detail.html
+		 * 是用户自己设计的界面），所以这里照旧做 URL 导航回皮肤入口的 #opera 锚点，
+		 * 不再改走框架页。框架原生干员页只是"皮肤没提供"时的兜底（皮肤包规范 §2 `operaPage` / §9）。 */
 		/* ent 参数（2026-09-11）：启动器两个皮肤的 GAL 按钮分别带 ?ent=generic|arknights，
 		 * 返回时回到对应皮肤入口（ark 页内 ak-back 的 from=gal 语义不变）；无参回落 generic 根。 */
 		var m = location.search.match(/[?&]ent=([^&]+)/);
 		var base = 'https://app.local/' +
 			((m && decodeURIComponent(m[1]) === 'arknights') ? 'skins/arknights/index.html' : 'index.html');
 		var url = base + (hash || '');
-		/* 外链回落：皮肤侧 #opera 锚点（ark 保留 view-opera 视图仅为此路径）。
-		 * from=gal 不可省：皮肤页返回键据此回 GAL 页（跨源 referrer 只剩 origin，判不出来）。 */
+		/* from=gal 不可省：皮肤页返回键据此回 GAL 页（跨源 referrer 只剩 origin，判不出来）。 */
 		if (hash === '#opera') url = base + '?from=gal#opera';
 		location.href = url;
 	} catch (e) {

@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.84"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.85"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -107,6 +107,11 @@ function Get-SkinManifest {
         palette = @{ bg = "#0f1216"; fg = "#e8eaed"; accent = "#4da3ff"; muted = "#8a919c" }
         statePath = "../../state.json"; author = ""; license = "MIT"
         note = "内置默认皮肤：通用样板实现（零第三方 IP，零图片素材）"
+        # operaPage（2026-09-12）：本皮肤**自带干员页**吗？true = 框架顶栏「干员」与 cmd=operators
+        # 都打开皮肤自己的干员视图（推 page:"opera" 由皮肤渲染）；false/缺省 = 用框架原生干员页。
+        # 为什么要有这个键：皮肤自己设计的干员界面（如方舟样板的 #view-opera/detail.html）是**用户的**界面，
+        # 框架不该拿自己的页面去顶替它；反过来第三方皮肤没做这个页时，框架必须兜底——两边都靠它区分。
+        operaPage = $false
     }
     try {
         $mf = Join-Path (Get-SkinDir) "manifest.json"
@@ -116,6 +121,8 @@ function Get-SkinManifest {
                 $def.spec = [string]$j.spec; $def.name = [string]$j.name; $def.title = [string]$j.title
                 $def.entry = [string]$j.entry; $def.statePath = [string]$j.statePath
                 $def.author = [string]$j.author; $def.license = [string]$j.license; $def.note = [string]$j.note
+                # 只认显式 true（字符串 "true"/1 也照收）：写成 "false"/其他值一律按"没有自带页"处理 = 安全兜底
+                if ($null -ne $j.operaPage) { $def.operaPage = [bool]($j.operaPage -match "^(?i:true|1|yes|on)$") }
                 if ($j.palette) {
                     $def.palette = @{ bg = [string]$j.palette.bg; fg = [string]$j.palette.fg; accent = [string]$j.palette.accent; muted = [string]$j.palette.muted }
                 }
@@ -1801,6 +1808,19 @@ function Open-DepTarget($which) {
 # ---------- 页面切换（主页/干员/设置/日志/状态/内容包/关于） ----------
 # 2026-09-12 UI 改版：二级页集合由这里唯一决定（新增页必须同时改此处 + Set-NavActive 映射表）。
 $script:PAGES = @("PageCfg", "PageLog", "PageState", "PagePlugins", "PageAbout", "PageOperators", "PageDeps")
+function Get-SkinOwnsOperaPage {
+    # 活动皮肤是否**自带**干员页（manifest 的 operaPage 键，见 docs/皮肤包接口规范-v1.md §2）。
+    # 取不到 manifest = 一律 false（→ 用框架原生页兜底），绝不因为"读不到"就当成"皮肤有"。
+    try { return [bool](Get-SkinManifest).operaPage } catch { return $false }
+}
+function Show-OperaPage {
+    # 「干员」入口的**唯一路由**（顶栏 NavOpe 与皮肤 cmd=operators 都走这里）。
+    # 2026-09-12 订正：上一轮我把皮肤自带的干员入口改去开框架原生页——**方向反了**。
+    # 皮肤自己设计的干员界面（方舟样板的 #view-opera / detail.html）是用户的作品，框架不该顶替它；
+    # 框架那张 PageOperators 只是"皮肤没提供时"的兜底。判据来自皮肤自己的声明（operaPage），
+    # 不是框架猜——所以两套皮肤都不需要为这件事打补丁。
+    if (Get-SkinOwnsOperaPage) { Show-Page "opera" } else { Show-Page "operators" }
+}
 function Show-Page($page) {
     if ($page -eq "home" -or $page -eq "opera") {
         foreach ($nm in $script:PAGES) {
@@ -1810,7 +1830,9 @@ function Show-Page($page) {
         $ph = $window.FindName("PageHome")
         if ($ph) { $ph.Visibility = "Visible" }
         Push-WebPage $page
-        Set-NavActive "home"
+        # 导航高亮：`opera` 是"皮肤自己的视图"，而它在皮肤里就是「干员」这个一级页——
+        # 皮肤声明了 operaPage 时高亮「干员」，否则（如 generic 的滚动区）仍算主页。
+        Set-NavActive $(if ($page -eq "opera" -and (Get-SkinOwnsOperaPage)) { "operators" } else { "home" })
     } else {
         foreach ($nm in $script:PAGES) {
             $pg = $window.FindName($nm)
@@ -2280,14 +2302,13 @@ function Handle-WebCmd($cmd, $data) {
             Start-StepMachine (New-StopSteps) "⚠（正在停止全部…）" | Out-Null
         }
         elseif ($cmd -eq "opera")   { Show-Page "opera" }
-        # 2026-09-12 分层去重（用户实测："新增了一个不一样的干员页面"）：补上 `operators`。
-        # 根因：原先皮肤**没有任何通道**能打开框架「干员」页——`opera` 的语义是"回主页、让你自己画人设一览"。
-        # 于是每个皮肤都被迫自绘第二个人设面（generic 画卡片网格+详情弹层、arknights 画 view-opera），
-        # 与框架 PageOperators（卡片图/详情/设为启动人设）并存 = 同一批数据两套界面、两个"干员页"。
-        # 分层定案：**数据面只保留框架这一份**，皮肤只许只读展示 + 用本命令跳转（皮肤规范 §9）。
-        # `deps`/`about` 一并开：顶栏能点的二级页里原先只有 cfg/plugins/log/state 有 cmd，
-        # 皮肤发 operators/deps/about 三个名字是**静默无效**——`遗留任务.md` A10 记的正是这处不对称。
-        elseif ($cmd -eq "operators") { Show-Page "operators" }
+        # `operators`（2026-09-12 新增，同日订正语义）：皮肤请求打开「干员」。
+        # **不是**"一律开框架原生页"，而是走 Show-OperaPage 的唯一路由：
+        # 皮肤自带干员页（manifest `operaPage: true`）→ 打开**皮肤自己的**视图；否则框架原生页兜底。
+        # 补这个命令的原因（用户实测 A10）：顶栏能点的二级页里原先只有 cfg/plugins/log/state 有 cmd，
+        # 皮肤发 operators/deps/about 三个名字是**静默无效**——想做点什么都只能自己再画一套。
+        # `deps`/`about` 一并开，理由同上。
+        elseif ($cmd -eq "operators") { Show-OperaPage }
         elseif ($cmd -eq "deps")    { Show-Page "deps" }
         elseif ($cmd -eq "about")   { Show-Page "about" }
         elseif ($cmd -eq "cfg")     { Show-Page "cfg" }
@@ -2412,7 +2433,7 @@ Init-WebView
 $topBar = $window.FindName("TopBarBorder")
 if ($topBar) { $topBar.Add_MouseLeftButtonDown({ try { $window.DragMove() } catch {} }) }
 BindClick "BtnHome" ({ Show-Page "home" })
-BindClick "NavOpe"   ({ Show-Page "operators" })
+BindClick "NavOpe"   ({ Show-OperaPage })   # 皮肤自带干员页就开皮肤的（manifest operaPage），否则框架原生页
 BindClick "NavCfg"   ({ Show-Page "cfg" })
 BindClick "NavPack"  ({ Show-Page "plugins" })
 BindClick "NavState" ({ Show-Page "state" })
