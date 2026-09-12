@@ -31,6 +31,7 @@
 | `plugins/correction` | 矫正规则（对话里直接教的说话方式，持久化生效） |
 | `plugins/qq_avatar` | QQ 头像设置（人设联动自动应用，自动裁方 640×640） |
 | `plugins/webgal` | GAL 前端客户端（`http://127.0.0.1:8080/gal` 页 + WS 实时推送；三态模式 gal\|qq\|chat（`data/webgal_mode.json`，开机复位 qq）；回想持久化 `data/gal_history.jsonl`；`/gal/content.json` 内容包台词/差分索引） |
+| `plugins/telegram` | **Telegram 国际通道**（2026-09-12 接入；Bot API 长轮询，`.env` 五键，缺省关闭=零副作用）。合成 OneBot 事件进同一条管线 → 与 QQ/GAL **同身份同记忆**；仅主人私聊（群聊/陌生人一律忽略）；启动排空离线积压不补答；语音只入不出。接入手册见 `docs/部署指南.md` §2.6，接口面见 `docs/接口文档.md` §6.6 |
 
 ## 核心层（`core/`，无 NoneBot 依赖）
 

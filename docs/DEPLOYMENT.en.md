@@ -90,8 +90,8 @@ drift starts (a lesson this project learned the hard way). For live status on yo
 The design intent behind the matrix, in one paragraph: **every row except the bot itself is optional**, and every
 optional row has a written degradation path. Local inference can be replaced by any OpenAI-compatible endpoint
 (*this is a supported path, not a fallback*); without the embedding model, memory degrades to keyword matching;
-without NapCat, the GAL web client still works (shipping with the GAL client as the main UI is a deliberate design
-choice); without TTS you simply get text.
+without NapCat, the **Telegram channel** (§2.6, added 2026-09-12) or the GAL web client still works (shipping with
+the GAL client as the main UI is a deliberate design choice); without TTS you simply get text.
 
 ⚠️ Two upstream notes worth repeating: **model weights** and **voice weights** are *not* distributed with this
 framework — obtain them legally yourself and check their own redistribution terms.
@@ -139,6 +139,143 @@ i.e. **NapCat listens as a `websocket_server` on `127.0.0.1:8080`, and the bot c
 - Unofficial protocol: **use a secondary account and keep the message rate low**
 - If banned: switch accounts and reduce trigger frequency. Configuration and data are separated here, so switching
   accounts only means logging into NapCat again — no reinstall.
+
+---
+
+## 2.6 Telegram channel (optional · international IM · added 2026-09-12)
+
+> **Why this exists**: QQ does not exist outside China, while Telegram's official Bot API is the most permissive
+> of the international platforms (create a bot with BotFather, get a token, done). This channel lets the project
+> run on a machine with **no QQ and no NapCat at all** — it *is* the degradation path advertised for the "QQ channel"
+> row of the matrix in §2. It reuses the same internal route as the GAL page (a synthetic OneBot event entering the
+> same pipeline), which is why Telegram, QQ and the GAL page **share one identity and one memory** (same uid, same
+> affection, same life state).
+
+**① Create the bot** (once, about a minute)
+
+1. In Telegram, open **@BotFather** → send `/newbot` → pick a name → copy the `<digits>:<string>` token
+2. Open **@userinfobot** → send it any message → it replies with *your* **numeric id** (not your @username)
+
+**② Configure** (`qq-bot\.env`; **restart the bot** afterwards)
+
+```ini
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TELEGRAM_OWNER_ID=123456789
+# Only needed when api.telegram.org is unreachable directly (common in mainland China):
+# a local proxy, e.g. http://127.0.0.1:10808
+TELEGRAM_PROXY=
+# Only change this for your own reverse proxy (⚠️ a third-party proxy sees your token)
+TELEGRAM_API_BASE=https://api.telegram.org
+```
+
+**③ Verify**
+
+- The bot log prints `telegram 通道已启动：owner=… api_base=…` ("telegram channel started")
+- Message the bot privately from **that account** → you get a reply
+- Incomplete config never dies silently: the log names the exact missing key
+  (`telegram 已启用但配置不全，通道未启动 —— 缺：…`)
+- To verify the whole chain *without* creating a bot: `qq-bot\tools\dev\tg_loop_check.py` (a local mock Bot API
+  server that exercises long-polling → gate → synthetic event → outbound send; no real token needed)
+
+**④ Boundaries (v1 deliberately does not do these — each maps to a tracked leftover task)**
+
+| Item | Current behaviour | Why |
+|---|---|---|
+| Group chats | **Ignored** (logged, never answered) | Needs a "only when @-mentioned" rule and per-group state — leftover A17 |
+| Strangers in private chat | **Ignored** (no reply, no explanation) | Otherwise anyone who guesses the bot username talks **as you**: memory, persona and API budget included |
+| Voice | Inbound only: she *notices* you sent a voice message, replies are text | The QQ side emits silk base64; Telegram wants ogg/opus, so the wav has to be kept on the voice side and transcoded — leftover A15 |
+| Images | Outbound works (stickers / search images); inbound is **presence-only** (she knows you sent a picture, she cannot see it) | Inbound bytes are never fetched, so no Telegram file URL (which embeds the token) ever lands in history or prompts |
+| Messages sent while the bot was off | **Skipped** at startup (the count is logged; no catch-up replies) | Waking up to dozens of stale messages costs LLM budget on every one of them — worse than missing a few old messages |
+| Launcher UI switch | **None yet**; edit `.env` by hand | Leftover A16 |
+
+**⑤ Disabling** = `TELEGRAM_ENABLED=false` (or delete the key). The plugin stays in the load list but has **zero
+side effects**: no connection, no log noise, no port (measured: with the channel off, the only line mentioning it is
+nonebot's own plugin-load line).
+
+---
+
+## 2.7 Cloud API mode: is the local engine still required, and what does it cost? (measured 2026-09-12)
+
+> Two practical questions: **after switching to a cloud API, is the local model still needed — can its VRAM be
+> freed?** and **what does a month cost?** Every number below is measured on the author's machine. The tool is
+> reproducible: `qq-bot\tools\dev\llm_meter.py` (a stub LLM client plus a copy of the real memory DB — no network,
+> no spend, and your real DB is never touched).
+
+### 2.7.1 Is the engine still pulled in?
+
+| Question | Answer | Evidence |
+|---|---|---|
+| Is the local engine **required**? | **No**: `launcher/deps.json` has `required:false`, the status page renders it as "optional", and the §2 matrix states that switching to an external API is **a supported path, not a fallback** | `deps.json` → `features[1]` |
+| Will the launcher **still start** it in API mode? | **Yes** — `New-StartSteps` looks only at the "start engine" switch, **never at the provider**: with the switch on, llama-server is started anyway (`-ngl 99`, i.e. it takes the VRAM) | `Launcher.ps1`: `if ($cfg.llm) { Start-Engine; Start-Embedding }` |
+| ⚠️ Hidden coupling | The same `if ($cfg.llm)` block also starts the memory-embedding service (port 11435) — so **turning that switch off also loses semantic recall** (memory degrades to keyword matching) | same line |
+| Does embedding use VRAM? | **No**: it is a second llama-server started with `-ngl 0` (CPU inference) | `Launcher.ps1` `Start-Embedding` |
+| Anything else secretly depending on local :11434? | Three places: ① two LLM polish calls inside `plugins/voice` (they fall back to the raw text, but you pay a timeout first) ② brain's model-switching command (it tries to start the local engine) ③ the **commented** `LLM_SMALL_BASE_URL=http://127.0.0.1:11434/v1` in `.env.example` — uncomment it and the small-model chain depends on the local engine again | respective sources |
+| Where does the small-model chain go by default? | With `LLM_SMALL_BASE_URL` unset it **falls back to the main chain** (your cloud API) — no local engine needed | `core/llm.py` `base_url("small")` |
+
+**Recommendation**: in API-only setups, do **not** start the local chat engine — but mind the coupling above: if you
+still want semantic recall, the better fix is "skip only the chat engine, keep embedding". That changes the
+launcher's default behaviour, so it is tracked as leftover task A18 pending your call.
+
+### 2.7.2 Measured cost per message
+
+**How it was measured**: one real private-chat turn driven with the **real history** (a copy of `data/memory.db`)
+while the LLM client is a recording stub — so we see exactly what brain assembles and how many calls a turn makes,
+without any network traffic or spend.
+
+**One private-chat turn = 6 LLM calls, ≈ 13,851 prompt tokens total**:
+
+| # | Purpose | system | conversation | prompt≈ | Notes |
+|---|---|---|---|---|---|
+| 1 | `agent` | 2,274 chars | 267 chars | 1,295 tok | planning/decision |
+| 2 | `correction` | 390 | 13 | 183 tok | correction-rule check |
+| 3 | `main` stage1 | **9,882 chars** | 787 (17 messages incl. history) | **5,297 tok** | the reply (thinking + draft) |
+| 4 | `main` stage2 | **9,853 chars** | 248 | **5,049 tok** | polish — the same persona+memory prefix sent again |
+| 5 | `memory` | 4,333 | — | 1,948 tok | fact/memory extraction |
+| 6 | `emotion` | 120 | 50 | 79 tok | emotion classification |
+
+**Pricing** (DeepSeek `deepseek-flash` = V4.1-Flash, official price list 2026-09-12; CNY per million tokens):
+
+| Item | Peak | Off-peak |
+|---|---|---|
+| Input · cache hit | 0.04 | 0.02 |
+| Input · cache miss | 2.0 | 1.0 |
+| Output | 8.0 | 4.0 |
+
+> **Peak hours are Beijing time, Monday–Friday 09:00–12:00 and 14:00–18:00**; everything else is off-peak at **half
+> price**. That suits a companion bot: **evenings, nights and weekends are all off-peak**. Context 1M, max output
+> 384K, concurrency 2500.
+
+| Per message | Peak | Off-peak |
+|---|---|---|
+| 0% input cache hit | ¥0.029 | ¥0.014 |
+| 50% hit | ¥0.015 | ¥0.007 |
+| 80% hit | ¥0.007 | ¥0.003 |
+
+**Extrapolated from the measured usage in `data/memory.db`** (2026-09-09: 254 owner messages, 09-10: 134, 09-11: 117;
+main-chain invocations ≈ 1.3 × message count — the log shows 117 messages / 155 main-chain generations on 09-11):
+
+| Volume | Peak pricing (80% hit) | Off-peak pricing (80% hit) |
+|---|---|---|
+| 130 msgs/day | ≈ ¥1.2/day → **¥37/month** | ≈ ¥0.6/day → **¥18/month** |
+| 250 msgs/day | ≈ ¥2.4/day → **¥71/month** | ≈ ¥1.2/day → **¥35/month** |
+
+Additionally: the life-simulation heartbeat (measured 7–20 ticks/day; assuming ≈3k prompt tokens each) costs about
+¥0.08/day — a small share. Output tokens are a minor item (100–250 tok/turn ⇒ ¥0.001–0.002).
+
+### 2.7.3 Three levers, in order of impact
+
+1. **Cache hits are the big one** (50× between hit and miss). Both main calls per turn share a ~9.9k-char
+   "persona + memory" system prefix, which is naturally cacheable — so **never put something that changes every
+   turn at the very front of the system prompt** (timestamps, random strings, per-turn statistics): that wipes the
+   whole cached prefix.
+2. **Time of day**: push deferrable work (daily review, long-form writing, batch replay) into off-peak hours.
+3. **Leave `LLM_SMALL_BASE_URL` empty** (it then follows the main chain); do not point it at local :11434 the way
+   the commented line in `.env.example` suggests.
+
+> **Calibration note**: these are **estimates**, not a bill — tokens are approximated as 0.6 tok/CJK char and 4
+> chars/token otherwise, and output length is assumed. Billing is always the provider's word; calibrate once
+> against a real monthly bill (the tool prints character counts to make the conversion easy).
 
 ---
 

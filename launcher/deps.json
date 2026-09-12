@@ -80,7 +80,7 @@
       "required": false,
       "provides": "在 QQ 里收发消息（OneBot v11 反向连接，端口 8080 收到 bot）",
       "detect": { "kind": "process", "value": "NapCat", "label": "进程 NapCat + TCP 8080 可连" },
-      "degrade": "无 QQ 通道：仍可用 GAL 页/网页模式对话（纯文本与视觉小说界面）。**上架发行以 GAL 为主界面即为此设计**",
+      "degrade": "无 QQ 通道：仍可用 **Telegram 通道**（国际 IM，2026-09-12 接入，见 docs\\部署指南.md §2.6）或 GAL 页/网页模式对话（纯文本与视觉小说界面）。**上架发行以 GAL 为主界面即为此设计**",
       "components": [
         {
           "id": "napcat",
@@ -207,7 +207,7 @@
           "name": "QQAI-Launcher.exe（ps2exe 产物）",
           "path": "launcher/QQAI-Launcher.exe",
           "kind": "file",
-          "size_mb": 1,
+          "size_mb": 0.25,
           "source": "本仓源码构建（launcher\\README.md §8）",
           "source_kind": "自建",
           "install": "无需安装；源码改了要重编译（ps2exe，需 -STA -x64 -requireAdmin，见 README §8）"

@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.89"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.90"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -75,10 +75,12 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 
 # ---------------- 配置 ----------------
 function Get-LauncherCfg {
-    $d = @{ llm = $true; voice = $true; skin = "generic" }
+    $d = @{ llm = $true; voice = $true; skin = "generic"; hideCfg = $false }
     try { if (Test-Path $cfgFile) {
         $j = Get-Content $cfgFile -Raw -Encoding UTF8 | ConvertFrom-Json
         foreach ($k in @("llm", "voice")) { if ($null -ne $j.$k) { $d[$k] = [bool]$j.$k } }
+        # 2026-09-12 A19 ②：「设置」页隐藏开关（本机状态；缺省 false = 不隐藏）
+        if ($null -ne $j.hideCfg) { $d["hideCfg"] = [bool]$j.hideCfg }
         # 2026-09-10 Phase2：皮肤键（generic|arknights）；未知/缺失值由 Get-SkinDir 回落 generic
         if ($j.skin) { $d["skin"] = [string]$j.skin }
     } } catch {}
@@ -174,7 +176,7 @@ function Get-LlmEffective($provider, $url, $model) {
 function Get-LlmBoxes {
     return @{
         url   = "$($window.FindName('TxtApiUrl').Text)".Trim()
-        key   = "$($window.FindName('TxtApiKey').Text)".Trim()
+        key   = Get-ApiKeyValue   # 2026-09-12 A19：掩码态取真值（否则把圆点写进 .env）
         model = "$($window.FindName('TxtModel').Text)".Trim()
     }
 }
@@ -186,7 +188,7 @@ function Load-LlmProfileToBoxes($key) {
         if (-not ($script:LLM_PROFILE_KEYS -contains $key)) { return }
         $p = $prof[$key]
         $u = $window.FindName("TxtApiUrl"); if ($u) { $u.Text = [string]$p.url }
-        $k = $window.FindName("TxtApiKey"); if ($k) { $k.Text = [string]$p.key }
+        Set-ApiKeyDisplay ([string]$p.key) $true   # 2026-09-12 A19：档里是真值，界面默认显示圆点
         $m = $window.FindName("TxtModel");  if ($m) { $m.Text = [string]$p.model }
         # 档里存的是空串（本地默认）时，界面显示**有效值**——空框看着像坏了，且用户无从知道它会回落到哪
         $effEmpty = (-not [string]$p.url) -or (-not [string]$p.model)
@@ -195,9 +197,66 @@ function Load-LlmProfileToBoxes($key) {
             if ($u -and -not $u.Text) { $u.Text = $e.url }
             if ($m -and -not $m.Text) { $m.Text = $e.model }
         }
-        if ($k -and -not $k.Text) { $k.Text = "ollama" }
+        if (-not $script:apiKeyReal) { Set-ApiKeyDisplay "ollama" $true }
     } catch {}
 }
+# ---------------- API Key 掩码 + 「设置」页隐藏（2026-09-12 A19 用户裁决"两个都做"） ----------------
+# ① 掩码：key 默认只显示圆点——直播/录屏不该把它拍进去。
+#    **关键正确性**：掩码状态下保存/拉型号必须取**真值**，否则会把一串圆点写进 .env——
+#    静默毁掉 key，而且界面上完全看不出来（这正是本项目最怕的那类静默）。故真值单独存 $script:apiKeyReal。
+# ② 隐藏：把「设置」页从顶栏收起。**页面本身不删**：$script:PAGES 与 Set-NavActive 的映射表都不动，
+#    所以审计 J 的"页面名闭包 / 导航映射覆盖"判据不受影响；恢复入口 = 窗口级 Ctrl+Shift+H；
+#    状态存 data\launcher.json 的 hideCfg 键（本机状态，gitignored）。
+$script:apiKeyMask = "••••••••••••"
+$script:apiKeyReal = ""
+$script:apiKeyMasked = $true
+$script:hideCfg = $false
+$script:hideCfgApplying = $false
+
+function Apply-ApiKeyDisplay {
+    try {
+        $k = $window.FindName("TxtApiKey")
+        if ($k) { $k.Text = $(if ($script:apiKeyMasked) { $script:apiKeyMask } else { $script:apiKeyReal }) }
+        $b = $window.FindName("BtnKeyEye")
+        if ($b) { $b.Content = $(if ($script:apiKeyMasked) { "显示" } else { "隐藏" }) }
+    } catch {}
+}
+
+function Set-ApiKeyDisplay([string]$real, [bool]$masked) {
+    $script:apiKeyReal = [string]$real
+    $script:apiKeyMasked = [bool]$masked
+    Apply-ApiKeyDisplay
+}
+
+function Get-ApiKeyValue {
+    if ($script:apiKeyMasked) {
+        if (-not $script:apiKeyReal) { return [string](Get-EnvValue "LLM_API_KEY") }
+        return [string]$script:apiKeyReal
+    }
+    $k = $window.FindName("TxtApiKey")
+    if (-not $k) { return [string]$script:apiKeyReal }
+    return "$($k.Text)".Trim()
+}
+
+function Apply-HideCfg {
+    try {
+        $script:hideCfgApplying = $true
+        $b = $window.FindName("NavCfg")
+        if ($b) { $b.Visibility = $(if ($script:hideCfg) { "Collapsed" } else { "Visible" }) }
+        $c = $window.FindName("ChkHideCfg")
+        if ($c) { $c.IsChecked = [bool]$script:hideCfg }
+    } catch {} finally { $script:hideCfgApplying = $false }
+}
+
+function Set-HideCfg([bool]$on, [bool]$quiet = $false) {
+    $script:hideCfg = [bool]$on
+    try { $cfg = Get-LauncherCfg; $cfg["hideCfg"] = $script:hideCfg; Set-LauncherCfg $cfg } catch {}
+    Apply-HideCfg
+    if (-not $quiet) {
+        Show-Banner $(if ($on) { "「设置」页已隐藏（Ctrl+Shift+H 恢复）" } else { "「设置」页已恢复" })
+    }
+}
+
 function Update-LlmProfileNote {
     # "当前生效（.env）" vs "本档" 的诚实对照 + 两条必须喊出来的告警。
     # 为什么非要有这一行：旧实现里"以为切回本地了、其实还在请求云端"是**完全静默**的。
@@ -231,6 +290,12 @@ function Update-LlmProfileNote {
         if ($key -eq "local" -and (Test-ExternalUrl ([string]$p.url))) {
             $lines += "→ ⚠️ 本地档里存着外部 URL，激活它不会回到本地引擎。"
         }
+        # 2026-09-12（部署指南 §2.7.1 的排查结论）：后端=在线 但「启动引擎」还开着 = 白占约 8 GB 显存。
+        # 这条必须界面自己喊出来——开关在「启动选项」那半边，与这里隔着半屏，用户不会想到两者有关联。
+        if ($pvNow -ne "local" -and [bool]((Get-LauncherCfg)["llm"])) {
+            $lines += "→ ⚠️ 后端=在线，但「启动引擎（LLM）」仍开着：启动器照样会拉起本地 llama-server（约 8 GB 显存）。" +
+                      "只用 API 就把它关掉；但注意该开关同时管记忆向量服务（11435，走 CPU 不占显存），关掉会连带丢语义检索（详见 部署指南 §2.7.1）。"
+        }
         $t.Text = ($lines -join "`n")
     } catch {}
 }
@@ -259,6 +324,11 @@ $script:UI_LANG_TABLE = @{
     "TTS 语音本地回放到直播音频（LIVE_AUDIO_PLAYBACK）" = "Play TTS audio into the live-stream mix (LIVE_AUDIO_PLAYBACK)"
     "聊天软件模式跨重启保留" = "Keep chat-app mode across restarts"
     "皮肤（主页外观）" = "Skin (home page look)"
+    # 2026-09-12（A19 用户裁决）：API Key 显隐 + 「设置」页隐藏
+    "显示" = "Show"; "隐藏" = "Hide"
+    "隐藏「设置」页（Ctrl+Shift+H 恢复）" = "Hide the Settings page (Ctrl+Shift+H to restore)"
+    "「设置」页已隐藏（Ctrl+Shift+H 恢复）" = "The Settings page is hidden (Ctrl+Shift+H to restore)"
+    "「设置」页已恢复" = "The Settings page is visible again"
     "插件管理（已装插件 / 快速安装）" = "Pack manager (installed / quick install)"
     "模型与接口" = "Model & API"; "配置档" = "Profile"; "后端类型" = "Backend type"
     "接口地址 URL" = "API base URL"; "模型名" = "Model name"; "拉取型号" = "Fetch models"
@@ -329,6 +399,9 @@ $script:UI_LANG_TABLE = @{
 # 别把短词也塞进来（短词走精确表，正则会误伤）。
 $script:UI_LANG_PATTERNS = @(
     @('^正在启动全部…（引擎就绪约 30-60 秒）$', 'Starting everything… (the engine is ready in about 30-60 s)'),
+    # 2026-09-12 A19：后端=在线 却还开着「启动引擎」的诚实告警（带变量插值，故走模式表）
+    @('^→ ⚠️ 后端=在线，但「启动引擎（LLM）」仍开着.*',
+      '→ ⚠️ Backend = cloud, yet "Start the local inference engine (LLM)" is still on: the launcher will start llama-server anyway (~8 GB VRAM). Turn it off if you only use the API — but that switch also starts the memory-embedding service (:11435, CPU, no VRAM), so turning it off also loses semantic recall (see DEPLOYMENT §2.7.1).'),
     @('^正在停止全部（含 LLM，显存释放）…$', 'Stopping everything (including the LLM; VRAM is released)…'),
     @('^正在停止全部（含 LLM）…$', 'Stopping everything (including the LLM)…'),
     @('^正在停止全部…$', 'Stopping everything…'),
@@ -666,7 +739,7 @@ function Get-ModelIds {
     $res = @{ ok = $false; ids = @(); err = "" }
     try {
         $u = "$($window.FindName('TxtApiUrl').Text)".Trim()
-        $k = "$($window.FindName('TxtApiKey').Text)".Trim()
+        $k = Get-ApiKeyValue   # 2026-09-12 A19：拉型号也要用真值（掩码时框里是圆点）
         if (-not $u) { $res.err = "先把『接口地址 URL』填上"; return $res }
         $url = $u.TrimEnd("/") + "/models"
         $hdr = @{}
@@ -1576,6 +1649,9 @@ function Get-OwnerPersona {
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <TextBlock Text="API Key" Width="90" FontSize="12" Foreground="#A9B0BA" VerticalAlignment="Center"/>
                 <TextBox x:Name="TxtApiKey" Width="330" Height="24" FontSize="11" VerticalContentAlignment="Center"/>
+                <!-- 2026-09-12（A19 ① 用户裁决）：默认只显示圆点——直播/录屏不该把 key 拍进去。
+                     点按钮显隐；焦点进入自动显示（否则没法改），失焦自动掩回。 -->
+                <Button x:Name="BtnKeyEye" Content="显示" FontSize="11" Width="56" Height="24" Margin="8,0,0,0" Style="{StaticResource CutBtn}" Foreground="#0B0D10"/>
               </StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <TextBlock Text="模型名" Width="90" FontSize="12" Foreground="#A9B0BA" VerticalAlignment="Center"/>
@@ -1586,6 +1662,9 @@ function Get-OwnerPersona {
                 <ComboBox x:Name="CmbModels" Width="220" Height="24" Margin="8,0,0,0" FontSize="11" VerticalContentAlignment="Center"/>
               </StackPanel>
               <TextBlock x:Name="txtModelNote" FontSize="10" Foreground="#6A7076" TextWrapping="Wrap" MaxWidth="520" Margin="90,4,0,0"/>
+              <!-- 2026-09-12（A19 ② 用户裁决）：把「设置」页从顶栏收起（直播/录屏时不想让人看到配置）。
+                   恢复入口是窗口级快捷键 Ctrl+Shift+H；状态存 data\launcher.json 的 hideCfg 键。 -->
+              <CheckBox x:Name="ChkHideCfg" Content="隐藏「设置」页（Ctrl+Shift+H 恢复）" FontSize="11" Foreground="#A9B0BA" Margin="0,14,0,0"/>
 
               <!-- 2026-09-12 T5.1：身份区（写 qq-bot\.env 的 SUPERUSERS / OWNER_NICKNAME） -->
               <TextBlock Text="身份" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4" Margin="0,24,0,0"/>
@@ -2471,7 +2550,7 @@ function Refresh-Cfg {
             if (-not $hitP -and $cbp.Items.Count -gt 0) { $cbp.SelectedIndex = 0 }
         }
         $u = $window.FindName("TxtApiUrl"); if ($u) { $u.Text = Get-EnvValue "LLM_BASE_URL"; if (-not $u.Text) { $u.Text = Get-EnvValue "OLLAMA_BASE_URL" }; if (-not $u.Text) { $u.Text = "http://127.0.0.1:11434/v1" } }
-        $k = $window.FindName("TxtApiKey"); if ($k) { $k.Text = Get-EnvValue "LLM_API_KEY"; if (-not $k.Text) { $k.Text = "ollama" } }
+        $kv = Get-EnvValue "LLM_API_KEY"; if (-not $kv) { $kv = "ollama" }; Set-ApiKeyDisplay $kv $true
         $m = $window.FindName("TxtModel"); if ($m) { $m.Text = Get-EnvValue "LLM_MODEL"; if (-not $m.Text) { $m.Text = Get-EnvValue "OLLAMA_MODEL" }; if (-not $m.Text) { $m.Text = "gemma" } }
         # 2026-09-12 界面语言回显 + 应用（放在这一处，Refresh-Cfg 每次进设置页都会跑；幂等）
         $clg = $window.FindName("CmbLang")
@@ -2817,7 +2896,10 @@ function Handle-WebCmd($cmd, $data) {
         elseif ($cmd -eq "operators") { Show-OperaPage }
         elseif ($cmd -eq "deps")    { Show-Page "deps" }
         elseif ($cmd -eq "about")   { Show-Page "about" }
-        elseif ($cmd -eq "cfg")     { Show-Page "cfg" }
+        elseif ($cmd -eq "cfg")     {
+            # 2026-09-12 A19 ②：「设置」页已隐藏时，皮肤发来的 cfg 命令同样挡住——否则隐藏形同虚设
+            if ($script:hideCfg) { Show-Msg "「设置」页已隐藏（Ctrl+Shift+H 恢复）" } else { Show-Page "cfg" }
+        }
         elseif ($cmd -eq "plugins") { Show-Page "plugins" }
         elseif ($cmd -eq "log")     { Show-Page "log" }
         elseif ($cmd -eq "state")   { $script:probeCache = @{}; Show-Page "state" }
@@ -2983,6 +3065,42 @@ BindClick "NavAbout" ({ Show-Page "about" })
 BindClick "BtnDepRefresh" ({ $script:probeCache = @{}; Refresh-Deps })
 BindClick "BtnDepOpenDir" ({ Open-DepTarget "dir" })
 BindClick "BtnDepOpenSrc" ({ Open-DepTarget "src" })
+
+# ---------------- 2026-09-12 A19：API Key 显隐 / 「设置」页隐藏 / 恢复快捷键 / 起始状态 ----------------
+BindClick "BtnKeyEye" ({ $script:apiKeyMasked = -not $script:apiKeyMasked; Apply-ApiKeyDisplay })
+$chkHide = $window.FindName("ChkHideCfg")
+if ($chkHide) {
+    $chkHide.Add_Checked({ try { if (-not $script:hideCfgApplying) { Set-HideCfg $true } } catch {} })
+    $chkHide.Add_Unchecked({ try { if (-not $script:hideCfgApplying) { Set-HideCfg $false } } catch {} })
+}
+$tkKey = $window.FindName("TxtApiKey")
+if ($tkKey) {
+    # 焦点进入自动显示（否则没法改），失焦掩回（镜头扫过时只看到圆点）；失焦时把改过的值收进真值槽
+    $tkKey.Add_GotFocus({ try { $script:apiKeyMasked = $false; Apply-ApiKeyDisplay } catch {} })
+    $tkKey.Add_LostFocus({ try {
+        $now = "$($window.FindName('TxtApiKey').Text)"
+        if ($now -ne $script:apiKeyMask) { $script:apiKeyReal = $now }
+        $script:apiKeyMasked = $true
+        Apply-ApiKeyDisplay
+    } catch {} })
+}
+# Ctrl+Shift+H：隐藏/恢复「设置」页（窗口级，任何时候都能按——这是隐藏后唯一的恢复入口）
+$window.Add_KeyDown({
+    param($s, $e)
+    try {
+        $mods = [System.Windows.Input.Keyboard]::Modifiers
+        $ctrl = ($mods -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
+        $shift = ($mods -band [System.Windows.Input.ModifierKeys]::Shift) -ne 0
+        if ($e.Key -eq [System.Windows.Input.Key]::H -and $ctrl -and $shift) {
+            Set-HideCfg (-not $script:hideCfg)
+            $e.Handled = $true
+        }
+    } catch {}
+})
+# 起始状态：读 launcher.json 的 hideCfg 并应用；key 一律先按掩码显示（刷新配置页时会再对齐一次）
+$script:hideCfg = [bool]((Get-LauncherCfg)["hideCfg"])
+Apply-HideCfg
+Set-ApiKeyDisplay (Get-EnvValue "LLM_API_KEY") $true
 BindClick "LstDeps" ({ $i = $window.FindName("LstDeps").SelectedIndex;
                         $fs = Get-Deps; if ($i -ge 0 -and $i -lt @($fs).Count) { Show-DepDetail $fs[$i] } })
 BindClick "BtnBack1" ({ Show-Page "home" })

@@ -3766,5 +3766,157 @@ for _dead54 in ("EXTRACT_EVERY", "MODE_RESET_SECONDS", "THINK_ON_WORDS", "THINK_
     check(f"54 T9死符号不得复活-{_dead54}", not hasattr(B, _dead54))
 
 
+# == 55. Telegram 通道（2026-09-12 A14 ②：长轮询 / 合成事件注入 / 出站翻译 / 主人门 / v1 边界）==
+# 全离线：不建连接、不调模型、不需要真 token（映射层是纯函数；出站用替身客户端）。
+print("== 55. Telegram 通道 ==")
+import asyncio as _aio55  # noqa: E402
+import base64 as _b64_55  # noqa: E402
+import json as _json55  # noqa: E402
+import plugins.telegram as _tg55  # noqa: E402
+import plugins.telegram.api as _api55  # noqa: E402
+from nonebot.adapters.onebot.v11 import Message as _Msg55, MessageSegment as _MS55  # noqa: E402
+
+_root55 = Path(__file__).resolve().parent.parent
+
+# ---- ① 分片按 UTF-16 码元（TG 的 4096 是码元口径；按 Python 码点切会超限被拒）----
+_emoji55 = "🙂" * 3000  # 码点 3000 / 码元 6000
+_chunks55 = _api55.split_text(_emoji55, 4096)
+check("55 分片-码元数都不超限", len(_chunks55) >= 2 and all(_api55.u16len(c) <= 4096 for c in _chunks55))
+check("55 分片-拼接无损", "".join(_chunks55) == _emoji55)
+check("55 分片-短文本单条", _api55.split_text("你好", 4096) == ["你好"])
+
+# ---- ② 段 → Bot API 计划（纯映射：不 import nonebot、不建连接）----
+_plan55 = _api55.plan_sends([{"type": "text", "data": {"text": "早"}},
+                             {"type": "text", "data": {"text": "呀"}}], 7)
+check("55 计划-连续text合并一条", len(_plan55) == 1 and _plan55[0]["method"] == "sendMessage"
+      and _plan55[0]["text"] == "早呀")
+check("55 计划-路由用传入chat_id", _plan55[0]["chat_id"] == 7)
+_p_url55 = _api55.plan_sends([{"type": "image", "data": {"file": "https://x/a.jpg"}}], 7)
+check("55 计划-url图-sendPhoto", _p_url55[0]["method"] == "sendPhoto"
+      and _p_url55[0]["field"] == "photo" and _p_url55[0]["url"] == "https://x/a.jpg")
+check("55 计划-gif改走sendAnimation", _api55.plan_sends(
+    [{"type": "image", "data": {"file": "https://x/a.gif"}}], 7)[0]["method"] == "sendAnimation")
+_p_b64_55 = _api55.plan_sends([{"type": "image", "data": {
+    "file": "base64://" + _b64_55.b64encode(b"\x89PNG\r\n\x1a\n" + b"\x00" * 40).decode()}}], 7)
+check("55 计划-base64图上传(sendPhoto)", _p_b64_55[0]["method"] == "sendPhoto"
+      and bool(_p_b64_55[0].get("b64")) and _p_b64_55[0]["filename"] == "photo.png")
+check("55 计划-不认识的图-sendDocument兜底", _api55.plan_sends(
+    [{"type": "image", "data": {"file": "base64://" + _b64_55.b64encode(b"zzzz").decode()}}], 7
+)[0]["method"] == "sendDocument")
+_p_voice55 = _api55.plan_sends([{"type": "text", "data": {"text": "听"}},
+                               {"type": "record", "data": {"file": "base64://x"}}], 7)
+check("55 计划-语音只入不出(skip可见)", any(p.get("method") == "skip" and p.get("seg") == "record"
+                                     for p in _p_voice55))
+check("55 计划-文本先于语音发出", _p_voice55[0]["method"] == "sendMessage")
+_p_noise55 = _api55.plan_sends([{"type": "at", "data": {"qq": "1"}},
+                                {"type": "reply", "data": {"id": "3"}},
+                                {"type": "text", "data": {"text": "嗯"}}], 7)
+check("55 计划-at/reply静默丢弃", len(_p_noise55) == 1 and _p_noise55[0]["text"] == "嗯")
+_p_unk55 = _api55.plan_sends([{"type": "json", "data": {}}], 7)
+check("55 计划-未知段可见skip", _p_unk55[0]["method"] == "skip" and _p_unk55[0]["seg"] == "json")
+check("55 计划-纯空白不发", _api55.plan_sends([{"type": "text", "data": {"text": "  \n"}}], 7) == [])
+check("55 脱敏-token不入日志", _api55.redact("url /bot123:ABC/x", "123:ABC") == "url /bot***/x")
+check("55 b64-缺padding也能解", _api55.b64_decode("aGk") == b"hi")
+
+# ---- ③ 入站门：陌生人 / 群聊 / 空消息一律不放行（防"猜中 bot 名字就当成你本人"）----
+_priv55 = {"chat": {"type": "private"}, "from": {"id": 42}, "text": "在吗"}
+check("55 门-主人私聊放行", _tg55.gate(_priv55, 42) == "")
+check("55 门-陌生人拦下", _tg55.gate(_priv55, 43) == "not_owner")
+check("55 门-群聊拦下", _tg55.gate({"chat": {"type": "group"}, "from": {"id": 42}, "text": "hi"}, 42) == "group")
+check("55 门-空消息拦下", _tg55.gate({"chat": {"type": "private"}, "from": {"id": 42}}, 42) == "empty")
+check("55 门-纯图放行(交brain存在感知)", _tg55.gate(
+    {"chat": {"type": "private"}, "from": {"id": 42}, "photo": [{"file_id": "F"}]}, 42) == "")
+check("55 门-owner未配时不放行任何人", _tg55.gate(_priv55, 0) == "not_owner")
+
+# ---- ④ extract：文本/昵称/媒体段（隐私：占位串不含 file_id，历史里不留可复用引用）----
+_t55, _n55, _d55 = _tg55.extract({"text": "看这个", "from": {"first_name": "Max", "last_name": "X", "id": 42},
+                                  "photo": [{"file_id": "SECRET_FID"}]})
+check("55 extract-文本与昵称", _t55 == "看这个" and _n55 == "Max X")
+check("55 extract-图段存在感知", len(_d55) == 1 and _d55[0]["type"] == "image")
+check("55 隐私-占位段不含file_id", "SECRET_FID" not in _json55.dumps(_d55))
+_tv55, _nv55, _dv55 = _tg55.extract({"voice": {"file_id": "SECRET_VOICE"}, "from": {"id": 42}})
+check("55 extract-纯语音→record段", _tv55 == "" and bool(_dv55) and _dv55[0]["type"] == "record")
+check("55 隐私-语音占位为定值", _dv55[0]["data"]["file"] == _tg55.PLACEHOLDER_VOICE)
+
+# ---- ⑤ 合成事件复用 webgal（必填字段清单只此一处）+ 图段与文本共存 ----
+from plugins.webgal.inject import build_event as _be55, owner_uid as _ou55  # noqa: E402
+from plugins.webgal.inject import SENDER_NICKNAME as _sn55  # noqa: E402
+_ev55 = _be55("10001", "看这个", nickname="Max", extra_segments=[_MS55.image("tg://photo")])
+check("55 合成事件-构造不抛且昵称生效", _ev55.sender.nickname == "Max")
+check("55 合成事件-文本仍在(get_plaintext)", _ev55.get_plaintext().strip() == "看这个")
+check("55 合成事件-图段可见(_has_img判据)", any(str(s.type) == "image" for s in _ev55.message))
+check("55 合成事件-旧签名行为不变", _be55("10001", "老调用").sender.nickname == _sn55)
+
+
+# ---- ⑥ 出站翻译：真发路径用替身客户端（不建连接、不出网）----
+class _FakeClient55:
+    def __init__(self):
+        self.plans = []
+
+    async def send_plan(self, plan):
+        self.plans.append(list(plan))
+        return []
+
+    async def close(self):
+        return None
+
+
+_real_cli55, _real_owner_fn55 = _tg55._CLIENT, _tg55.owner_id
+_tg55._CLIENT = _FakeClient55()
+_tg55.owner_id = lambda: 777
+try:
+    _bot55 = _tg55.TgBot()
+    check("55 出站-路由锁定主人chat_id", _bot55.chat_id == 777)
+    _aio55.run(_bot55.call_api("send_private_msg", user_id=999999, message=_Msg55("她在吗")))
+    check("55 出站-私聊计划落到客户端", bool(_tg55._CLIENT.plans)
+          and _tg55._CLIENT.plans[0][0]["method"] == "sendMessage")
+    check("55 出站-chat_id不信payload(锁主人)", _tg55._CLIENT.plans[0][0]["chat_id"] == 777)
+    _aio55.run(_bot55.call_api("send_group_msg", group_id=1, message=_Msg55("群")))
+    check("55 出站-群消息不发(v1边界)", len(_tg55._CLIENT.plans) == 1)
+    _aio55.run(_bot55.call_api("set_qq_profile", nickname="x"))
+    _aio55.run(_bot55.call_api("send_poke", user_id=1))
+    check("55 出站-非发送类API空操作", len(_tg55._CLIENT.plans) == 1)
+finally:
+    _tg55._CLIENT, _tg55.owner_id = _real_cli55, _real_owner_fn55
+
+
+# ---- ⑦ 排空语义（离线积压只记条数、不补答）----
+class _FakeDrain55:
+    def __init__(self):
+        self.calls = 0
+
+    async def get_updates(self, offset=None, timeout=None):
+        self.calls += 1
+        if self.calls == 1:
+            return [{"update_id": 10}, {"update_id": 11}]
+        if self.calls == 2:
+            return [{"update_id": 12}]
+        return []
+
+
+_fd55 = _FakeDrain55()
+_skip55, _last55 = _aio55.run(_tg55._drain(_fd55))
+check("55 排空-条数与最后update_id", (_skip55, _last55) == (3, 12))
+check("55 排空-空即止", _fd55.calls == 3)
+check("55 排空-offset=last+1不重放", _last55 + 1 == 13)
+
+# ---- ⑧ 缺省关闭 = 零副作用（不建连接、不建任务、状态可诊断）----
+check("55 缺省-未设ENABLED即关闭", _tg55.enabled() is False)
+check("55 缺省-未启用不起轮询", _tg55.start_if_configured() is False and _tg55._TASK is None)
+check("55 缺省-状态可诊断", isinstance(_tg55.status(), dict) and _tg55.status()["running"] is False)
+
+# ---- ⑨ 身份：有 QQ 则与 QQ/GAL 共用同一份记忆；完全没 QQ 也能自成一路 ----
+_uid55 = _tg55.identity_uid()
+check("55 身份-与webgal同源(同记忆)", _uid55 == _ou55() and _uid55 != "")
+check("55 身份-无QQ回落不撞QQ号域", _tg55.TG_UID_BASE > 4_300_000_000
+      and int(str(_tg55.TG_UID_BASE + 12345)) > 0)  # 合成事件 user_id 必须数字
+
+# ---- ⑩ v1 边界护栏（机器判：不拉入站媒体字节；插件已注册）----
+_src55 = (_root55 / "plugins" / "telegram" / "__init__.py").read_text(encoding="utf-8")
+check("55 护栏-入站不拉媒体字节", "get_image" not in _src55 and "get_record" not in _src55)
+check("55 护栏-插件已注册pyproject",
+      "plugins.telegram" in (_root55 / "pyproject.toml").read_text(encoding="utf-8"))
+
+
 print(f"\n== 结果：{_PASS} PASS / {_FAIL} FAIL ==")
 sys.exit(1 if _FAIL else 0)

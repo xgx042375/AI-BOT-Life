@@ -498,6 +498,16 @@ def in_synthetic_round() -> bool:
     return _SYNTHETIC["on"]
 
 
+def set_synthetic_round(on: bool) -> None:
+    """合成轮标记开关（2026-09-12：**合成通道共用**——GAL 页与 Telegram 都经此置位）。
+
+    标记语义是"当前不在真实 QQ 事件里"，故 telegram 插件也用它：不置位的话，一条 Telegram
+    消息触发的管线轮可能去动 QQ 小号（brain._typing_on / 头像 / 输入状态），
+    即"合成通道触发了真实 QQ 动作"——webgal 计划表 §五#4 的红线。
+    """
+    _SYNTHETIC["on"] = bool(on)
+
+
 async def _default_pipeline_runner(cap_bot, ev) -> None:
     from nonebot.message import handle_event
 

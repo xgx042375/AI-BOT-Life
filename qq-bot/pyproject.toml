@@ -14,6 +14,10 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=3.1",
     "aiosqlite>=0.22",
     "loguru>=0.7",  # 2026-09-07 核查补：agent 层直接 import（此前靠 nonebot2 传递依赖带入）
+    # 2026-09-12 Telegram 通道（plugins/telegram/api.py 顶层 import httpx）。
+    # 显式声明，不靠 nonebot2[fastapi] 的传递依赖带入——livesource 那条教训：按 pyproject
+    # 重建环境时"没声明的直接 import"会 ImportError，而失败面是整条通道静默不启动。
+    "httpx>=0.27",
 ]
 
 # 2026-09-08 B2：直播弹幕接入（plugins/livesource）可选依赖——只声明不安装；
@@ -38,5 +42,8 @@ plugins = [
     # 2026-09-10 全项目审计 P1：livesource 此前从未注册——launcher 直播开关写 .env 后整链无消费者。
     # 模块自述常驻短路设计：LIVE_DANMAKU_ENABLED 缺省/false 加载零副作用；未装 blivedm 时仅 warning。
     "plugins.livesource",
+    # 2026-09-12 用户裁决 A14 ②：国际 IM 通道（Telegram Bot API 长轮询）。
+    # 缺省关闭（TELEGRAM_ENABLED 未设 = 加载零副作用）；启用见 docs/部署指南.md「Telegram 通道」。
+    "plugins.telegram",
 ]
 

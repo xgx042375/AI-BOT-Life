@@ -10,8 +10,8 @@
 ## 0. Overview
 
 In one line: **NapCat QQ → NoneBot2 → the sequential main chain in `plugins/brain` → `core`
-(llm/packs/special/reply) → two outputs, QQ / GAL web**; the background agent layer (lifesim heartbeat /
-proactive / review) keeps feeding the main chain; the data surface converges on `data/` (runtime) and
+(llm/packs/special/reply) → three outputs, QQ / GAL web / Telegram**; the background agent layer (lifesim
+heartbeat / proactive / review) keeps feeding the main chain; the data surface converges on `data/` (runtime) and
 `qq-bot/data/` (character cards and config). Releases ship as the "closed core + open SDK" three bundles
 (`build/build_release.ps1`); private content goes out separately as local distribution artifacts
 (`release/local-content/`).
@@ -58,6 +58,7 @@ proactive / review) keeps feeding the main chain; the data surface converges on 
 | `plugins/memory` | The memory store `data/memory.db` (messages/facts/events/emotions/summaries/open_threads/fact_corrections) + semantic recall (`memory/embeddings.py` vector service on :11435, qwen3-embedding; switchable off with `EMBED_ENABLED`); `build_context` assembles the L1-L4 context; the group meme store |
 | `plugins/voice` | TTS: subprocess pool over the GPT-SoVITS bundle (`tools/`, gitignored), the built-in `VOICES` table merged with a pack's `voice.json` via `setdefault`, nine emotion classes in `EMO_PARAMS` (tone parameters), a serial lock on `tts_wav`; nothing fires without a voice key |
 | `plugins/webgal` | The GAL web output: single WS connection (token auth, `data/webgal_token.txt`), frame protocol (auth/msg/mode/ping ↔ auth_ok/reply_start/seg/sprite/state/reply_end/err), `/gal/content.json` (`core.packs.content_index`), `/gal/tts`, the `CaptureBot` for synthetic rounds, recall rounds written to `data/gal_history.jsonl` (Phase 2b), the gal gate disabling the QQ channel |
+| `plugins/telegram` | The international IM channel (added 2026-09-12): Bot API long polling (`getUpdates`, token from `.env`), owner-only private chat gate, drain-on-startup (the offline backlog is counted, never replayed), each update turned into a synthetic OneBot event and pushed through `nonebot.message.handle_event` into the *same* pipeline — so Telegram shares the owner's identity and memory with QQ and the GAL page; `TgBot.call_api` translates outgoing segments into Bot API calls (text/photo) and no-ops everything else. Boundaries: groups/strangers ignored, voice inbound-only; see `DEPLOYMENT.en.md` §2.6 |
 | `plugins/fiction` | Long-form writing (write a novel / continue / revise chapter N / outline); meta + outline + per-chapter persistence under `data/fiction/` |
 | `plugins/emotion` | Emotion engine: 9-class LLM classification (rule-based fallback on failure) → VTube Studio Live2D parameter injection (silent fallback while it is not running) → persisted to `emotions` |
 | `plugins/correction` | Conversation correction: the LLM decides whether a correction was intended → `data/corrections.json` (≤10 entries per user, owner only) → `build_context` injects "the way of speaking this person has corrected" |

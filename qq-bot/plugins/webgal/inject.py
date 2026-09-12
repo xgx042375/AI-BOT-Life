@@ -38,8 +38,15 @@ SENDER_NICKNAME = "博士"
 CAPTURE_SELF_ID = "9"
 
 
-def build_event(user_id: str, text: str) -> PrivateMessageEvent:
-    """构造主人私聊合成事件（onebot v11）。字段以本机 adapter 模型必填项为准，构造不抛为准绳。"""
+def build_event(user_id: str, text: str, nickname: str | None = None,
+                extra_segments: list | None = None) -> PrivateMessageEvent:
+    """构造主人私聊合成事件（onebot v11）。字段以本机 adapter 模型必填项为准，构造不抛为准绳。
+
+    2026-09-12（Telegram 通道接入）：加 nickname / extra_segments 两个**可选**参数（默认行为不变，
+    §42 回归照旧）。理由：这份"必填字段清单"是踩出来的（少一个就构造失败），只允许存在**这一处**
+    ——Telegram 通道复用它；复制一份出去，下次 nonebot/adapter 升级时必然漂移。
+    extra_segments 供"带媒体的合成事件"（TG 的图/语音存在感知段）追加。
+    """
     try:
         from nonebot import get_driver
 
@@ -50,6 +57,8 @@ def build_event(user_id: str, text: str) -> PrivateMessageEvent:
         self_id = CAPTURE_SELF_ID
     uid = int(str(user_id).strip())
     msg = Message(str(text or ""))
+    for _seg in extra_segments or []:
+        msg = msg + _seg
     return PrivateMessageEvent(
         time=int(time.time()),
         self_id=self_id,
@@ -62,7 +71,7 @@ def build_event(user_id: str, text: str) -> PrivateMessageEvent:
         original_message=msg,
         raw_message=str(text or ""),
         font=0,
-        sender=Sender(nickname=SENDER_NICKNAME),
+        sender=Sender(nickname=nickname or SENDER_NICKNAME),
         to_me=True,
     )
 

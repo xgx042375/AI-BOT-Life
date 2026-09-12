@@ -474,6 +474,7 @@ async def my_tool(arg): ...
 | Live2D renderer | §5.4 | Performance takeover point |
 | ToolCard | §6.1 | Code-level capability registration |
 | Content pack discovery | `core/packs.py` (`discover` / `by_type` / `content_index` / `voice_index` / `world_index` / `items_index` / `tones_index`) | Index views |
+| Telegram channel | `plugins/telegram` (§6.6) | International IM entry: a synthetic event reusing the whole pipeline; same identity and memory as QQ/GAL |
 
 **Iron-rule alignment**: the machine does only five things — protocol marker stripping, control code parsing,
 **permission boundaries**, time-window fallback, and incident-level red lines.
@@ -568,6 +569,31 @@ display name: **`labels` → the content pack directory's `label` → the kind i
 > (see `docs/R18分层-spec-2026-09-12.md` *(Chinese)*).
 > Note: the `state kind whitelist` is **not** a list of display names — externalizing it as display names would break the
 > entire state machine on a third party's install (`set_state` relies on it to decide validity).
+
+---
+
+### 6.6 Telegram channel (`plugins/telegram`, added 2026-09-12)
+
+**What it is**: the international IM entry point. QQ does not exist outside China, so this channel lets the project
+hold a conversation on a machine with **no QQ and no NapCat at all**. Internally it takes the *same* route as the GAL
+page: a Telegram update → a **synthetic OneBot v11 event** → `nonebot.message.handle_event(bot, ev)` → the entire
+pipeline (memory / affection / emotion / items / commands / persona all reused) → outgoing `bot.call_api` translated
+into Bot API calls. **Telegram, QQ and the GAL page therefore share one identity and one memory** (same uid).
+
+| Surface | Location | Notes |
+|---|---|---|
+| Config keys | `qq-bot/.env` | `TELEGRAM_ENABLED` / `TELEGRAM_BOT_TOKEN` / `TELEGRAM_OWNER_ID` / `TELEGRAM_PROXY` / `TELEGRAM_API_BASE` (all unset = off = zero side effects) |
+| Inbound gate | `plugins.telegram.gate(msg, owner) -> str` | Pure function: `""` allowed / `group` / `not_owner` / `empty`; **only the owner's private chat passes** |
+| Update parsing | `plugins.telegram.extract(msg) -> (text, nickname, descs)` | Pure function (builds no OneBot segments, so it stays offline-testable); inbound media is **presence-only** |
+| Segment → call mapping | `plugins.telegram.api.plan_sends(segs, chat_id)` | Pure function: text → `sendMessage`; image → `sendPhoto` / `sendAnimation` / `sendSticker` / `sendDocument`; outbound record is skipped (A15) |
+| Chunking unit | `plugins.telegram.api.split_text` | Splits by **UTF-16 code units** (Telegram's 4096 counts units, not code points) |
+| Status snapshot | `plugins.telegram.status()` | `{enabled, running, owner, api_base, proxy, skipped_offline, rounds, last_error}` |
+| Identity without QQ | `plugins.telegram.TG_UID_BASE` | When `SUPERUSERS` is empty, `10**15 + tg_id` becomes its own identity (disjoint from the QQ id space, still a numeric uid) |
+| Offline loop checker | `qq-bot/tools/dev/tg_loop_check.py` | A local mock Bot API server exercising long-poll → gate → synthetic event → outbound send (no real token needed) |
+
+**Boundaries** (deliberately not done in v1, each tracked by a leftover-task id): group chats and strangers are
+ignored (A17); voice is inbound-only (A15); no launcher UI switch yet (A16); startup skips the offline backlog
+without catching up (`DEPLOYMENT.en.md` §2.6).
 
 ---
 

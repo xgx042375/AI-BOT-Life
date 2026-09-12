@@ -2216,6 +2216,76 @@ def audit_local_identity() -> dict:
             "scanned": len(paths), "selftest": _identity_selftest()}
 
 
+def _plugin_reg_grade(declared: set, dirs: list) -> list:
+    """目录未注册清单（纯函数，供自检）。"""
+    return [d for d in dirs if d not in declared]
+
+
+def _plugin_reg_selftest() -> str:
+    a = _plugin_reg_grade({"brain", "webgal"}, ["brain", "webgal"])
+    b = _plugin_reg_grade({"brain"}, ["brain", "livesource"])
+    c = _plugin_reg_grade(set(), [])
+    ok = (a == [] and b == ["livesource"] and c == [])
+    return "PASS" if ok else f"FAIL a={a} b={b} c={c}"
+
+
+def _inject_no_mark(dirs: list) -> list:
+    """合成事件注入点缺"合成轮标记"的文件（纯函数，供自检）。
+
+    判据：文件里出现 `handle_event(` ⇒ 必须有 `set_synthetic_round(` 或 `_SYNTHETIC[`。
+    理由（红线）：合成通道（GAL 页 / Telegram）跑管线时必须置位，否则下游（brain._typing_on、
+    头像、输入状态）会去动**真实 QQ 账号**——webgal 计划表 §五#4。
+    """
+    out = []
+    for p in _iter_runtime_py():
+        txt = _read(p)
+        if "handle_event(" not in txt:
+            continue
+        if "set_synthetic_round(" not in txt and "_SYNTHETIC[" not in txt:
+            out.append(str(p.relative_to(QQBOT)).replace("\\", "/"))
+    return out
+
+
+def _inject_mark_selftest() -> str:
+    """自检：三类样本文件的判据真值（有注入无标记=报；有标记=不报；无注入=不看）。"""
+    samples = (("handle_event(a, b)\n", True),
+               ("handle_event(a, b)\nset_synthetic_round(True)\n", False),
+               ("_SYNTHETIC['on'] = True\nhandle_event(a, b)\n", False),
+               ("x = 1\n", False))
+    bad = []
+    for src, expect in samples:
+        got = ("handle_event(" in src) and ("set_synthetic_round(" not in src
+                                           and "_SYNTHETIC[" not in src)
+        if got != expect:
+            bad.append(src.strip()[:28])
+    return "PASS" if not bad else f"FAIL {bad}"
+
+
+def audit_plugin_registration() -> dict:
+    """插件注册与合成通道红线（2026-09-12 新增；livesource 教训的通用化）。
+
+    病根：`plugins/xxx/` 目录存在 **≠** 被加载。加载清单在 pyproject.toml 的
+    `[tool.nonebot].plugins`；漏一行 = 整个插件**静默不生效**——livesource 曾经就是：
+    启动器写了 .env 开关、文档也写了，全链没有任何消费者，且**零报错**（人工检查漏过一次）。
+    故做成机器判据：目录 ⇒ 必须在清单里；清单里的幽灵项也要报。
+    """
+    src = _read(QQBOT / "pyproject.toml")
+    m = re.search(r"\[tool\.nonebot\](.*?)(?=\n\[|\Z)", src, re.S)
+    block = m.group(1) if m else ""
+    declared = set(re.findall(r"""["']plugins\.([A-Za-z_][A-Za-z0-9_]*)["']""", block))
+    pdir = QQBOT / "plugins"
+    dirs = sorted(p.name for p in pdir.iterdir()
+                  if p.is_dir() and p.name != "__pycache__" and (p / "__init__.py").is_file())
+    return {
+        "dirs": dirs,
+        "declared": sorted(declared),
+        "unreg": _plugin_reg_grade(declared, dirs),
+        "ghost": sorted(d for d in declared if not (pdir / d).is_dir()),
+        "inject_no_mark": _inject_no_mark(dirs),
+        "selftest": f"{_plugin_reg_selftest()} / {_inject_mark_selftest()}",
+    }
+
+
 def main() -> int:
     report = {
         "env": audit_env(),
@@ -2233,6 +2303,7 @@ def main() -> int:
         "control_chars": audit_control_chars(),
         "timeout_tasks": audit_timeout_and_tasks(),
         "local_identity": audit_local_identity(),
+        "plugin_reg": audit_plugin_registration(),
     }
     if "--json" in sys.argv:
         print(json.dumps(report, ensure_ascii=False, indent=1))
@@ -2629,6 +2700,26 @@ def main() -> int:
             print(f"        ⚠️  {h['file']}  行 {','.join(str(x) for x in h['lines'])}")
     _ist = _li.get("selftest", "—")
     print(f"   {'✅' if str(_ist).startswith('PASS') else '❌'} 分级器自检：{_ist}")
+
+    print("=" * 68)
+    print("P. 插件注册与合成通道红线（目录存在 ≠ 被加载；合成轮必须置位）")
+    _pr = report["plugin_reg"]
+    print(f"   plugins/ 目录 {len(_pr['dirs'])} 个 ｜ pyproject 清单 {len(_pr['declared'])} 条")
+    print(f"   {'✅' if not _pr['unreg'] else '❌'} 目录存在但未注册（整个插件静默不生效）："
+          f"{len(_pr['unreg'])} 个")
+    for _n in _pr["unreg"]:
+        print(f"        ❌ plugins/{_n}  → 在 pyproject.toml [tool.nonebot].plugins 补 "
+              f"\"plugins.{_n}\"（livesource 就是这样静默失效的）")
+    print(f"   {'✅' if not _pr['ghost'] else '❌'} 清单里的幽灵项（注册了但目录不在）："
+          f"{len(_pr['ghost'])} 个")
+    for _n in _pr["ghost"]:
+        print(f"        ❌ plugins.{_n}")
+    print(f"   {'✅' if not _pr['inject_no_mark'] else '❌'} 合成注入点带合成轮标记（缺了会去动真实"
+          f" QQ 账号）：{len(_pr['inject_no_mark'])} 处缺")
+    for _n in _pr["inject_no_mark"]:
+        print(f"        ❌ {_n}  → 加 webgal.set_synthetic_round(True/False) 或置 _SYNTHETIC")
+    _pst = _pr.get("selftest", "—")
+    print(f"   {'✅' if str(_pst).startswith('PASS') else '❌'} 分级器自检：{_pst}")
     return 0
 
 
