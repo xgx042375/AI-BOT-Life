@@ -29,9 +29,14 @@ life-simulation heartbeat, long-term memory, and a two-layer extension system (c
 3. Double-click launcher\QQAI-Launcher.exe — it tells you what's missing, what breaks without it, and where to get it
 ```
 
-Details: [`docs/DEPLOYMENT.en.md`](docs/DEPLOYMENT.en.md) (install / upgrade / relocate / uninstall — English).
-The fuller operations and API references are currently in Chinese (`docs/维护手册.md`, `docs/接口文档.md`); English
-versions are being produced in stages.
+Details: [`docs/DEPLOYMENT.en.md`](docs/DEPLOYMENT.en.md) (install / upgrade / relocate / uninstall).
+The English set is now complete: [`docs/API.en.md`](docs/API.en.md) (contracts) ·
+[`docs/SKIN-SPEC-v1.en.md`](docs/SKIN-SPEC-v1.en.md) (skin packs, layering) ·
+[`docs/MAINTENANCE.en.md`](docs/MAINTENANCE.en.md) (operations & troubleshooting) ·
+[`docs/MODDING.en.md`](docs/MODDING.en.md) (build a mod) ·
+[`docs/ARCHITECTURE.en.md`](docs/ARCHITECTURE.en.md) (module map) ·
+[`CONTRIBUTING.en.md`](CONTRIBUTING.en.md).
+The Chinese originals are authoritative if the two ever disagree — the translations are maintained in the same change, not afterwards.
 
 ## Repository layout
 
@@ -50,9 +55,10 @@ docs\         Documentation (contracts / how-to / operations / deployment / thir
 | Goal | Read |
 |---|---|
 | Build a content pack (character / voice / stage / world …) | [`docs/MODDING.en.md`](docs/MODDING.en.md) |
-| Stable contracts (pack format, GAL protocol, skin format, code hooks) | [`docs/接口文档.md`](docs/接口文档.md) |
-| Skin pack format and launcher interfaces (`state.json` / `postMessage` / manifest) | [`docs/皮肤包接口规范-v1.md`](docs/皮肤包接口规范-v1.md) |
-| Architecture and module map | [`docs/项目拆解.md`](docs/项目拆解.md) |
+| Stable contracts (pack format, GAL protocol, skin format, code hooks) | [`docs/API.en.md`](docs/API.en.md) |
+| Skin pack format, `state.json` / `postMessage` / manifest, who owns which view | [`docs/SKIN-SPEC-v1.en.md`](docs/SKIN-SPEC-v1.en.md) |
+| Run it, where the switches and logs are, what to check first when it breaks | [`docs/MAINTENANCE.en.md`](docs/MAINTENANCE.en.md) |
+| Architecture and module map | [`docs/ARCHITECTURE.en.md`](docs/ARCHITECTURE.en.md) |
 | Third-party components and licenses | [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md) |
 
 **Compatibility promise**: `CORE_API_VERSION` (currently `1.0.0`) is **append-only within v1.x** —
@@ -75,4 +81,4 @@ documented fields and hook points will not break.
 
 ## Contributing
 
-Issues and PRs are welcome — content packs, skin packs, docs and examples all count. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Issues and PRs are welcome — content packs, skin packs, docs and examples all count. See [`CONTRIBUTING.en.md`](CONTRIBUTING.en.md) (or [`CONTRIBUTING.md`](CONTRIBUTING.md), *Chinese*).

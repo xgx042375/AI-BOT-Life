@@ -1,7 +1,7 @@
 # Modding Guide (from zero to working · for content authors)
 
 > **How to use this**: pick the section for what you want to build, follow the steps, then read §8 for activation and troubleshooting.
-> **Contract details** (field validation, protocols, permissions) always live in `接口文档.md` (*Chinese*) — this guide only covers *how to do it*.
+> **Contract details** (field validation, protocols, permissions) always live in [`API.en.md`](API.en.md) — this guide only covers *how to do it*.
 > **Cost of the three extension kinds**: content pack (edit JSON) < skin pack (edit pages) < tool pack (write Python, not loaded by default).
 > **Prefer zero code**: 90% of mod ideas are satisfied by a **content pack** — first make sure you really need code.
 
@@ -209,7 +209,7 @@ than from `ASSETS` (handled in `gal.js`; see the skin spec §7).
 
 > Full field table (including `operaPage`), the whole command channel (`start` / `stop` / `stopbot` / `exit` /
 > `opera` / `home` / `operators` / `cfg` / `plugins` / `log` / `state` / `deps` / `about` / `setpersona`),
-> the state.json fields and the layering section: `皮肤包接口规范-v1.md` (*Chinese*), plus `接口文档.md` §4.
+> the state.json fields and the layering section: [`SKIN-SPEC-v1.en.md`](SKIN-SPEC-v1.en.md), plus [`API.en.md`](API.en.md) §4.
 
 ---
 
@@ -260,7 +260,7 @@ async def now(city: str): ...
    cannot read the parent's memory.
 
 > ⚠️ The sandbox described above is **not implemented yet** in this version — today a tool pack only becomes loadable when
-> `PACKS_ENABLE_PY` is on, without permission enforcement. Design notes: `接口文档.md` §6.3.
+> `PACKS_ENABLE_PY` is on, without permission enforcement. Design notes: [`API.en.md`](API.en.md) §6.3.
 
 ---
 
@@ -330,8 +330,8 @@ Do **not** put your pack into `qq-bot/packs/` (that location is for bundled exam
 
 | Topic | Where |
 |---|---|
-| All fields and protocols | `接口文档.md` (*Chinese*; English version in progress) |
-| Skin pack details | `皮肤包接口规范-v1.md` (*Chinese*) |
-| Running the framework, where logs live | `维护手册.md` (*Chinese*) · `DEPLOYMENT.en.md` (English) |
+| All fields and protocols | [`API.en.md`](API.en.md) |
+| Skin pack details | [`SKIN-SPEC-v1.en.md`](SKIN-SPEC-v1.en.md) |
+| Running the framework, where logs live | [`MAINTENANCE.en.md`](MAINTENANCE.en.md) · [`DEPLOYMENT.en.md`](DEPLOYMENT.en.md) |
 | Live examples (breaking them is caught by tests) | `qq-bot/packs/example.sakura/` (card) · `qq-bot/packs/example.stage/` (stage) |
 | Where to put your own code | `data/plugins/` (yours, never overwritten) — framework plugins live in `qq-bot/plugins/` |

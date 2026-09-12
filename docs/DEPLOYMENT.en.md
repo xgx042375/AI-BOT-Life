@@ -1,7 +1,7 @@
 # Deployment Guide (install · upgrade · relocate · uninstall)
 
 > **How to use this document**: first install → §1. "which feature needs what" → §2. Moving to another machine/disk → §4.
-> Operations & troubleshooting: see `维护手册.md` (*Chinese*). Building a mod: see `MOD开发指南.md` (*Chinese*).
+> Operations & troubleshooting: see [`MAINTENANCE.en.md`](MAINTENANCE.en.md). Building a mod: see [`MODDING.en.md`](MODDING.en.md).
 > **One-line premise**: **no external component is mandatory.** The minimal form is "Python + this repo",
 > which can run in plain-text / visual-novel mode. Models, QQ, TTS and Live2D are all optional.
 
@@ -197,4 +197,4 @@ This framework **writes no registry keys, no system directories, and installs no
 > **Running headless**: `Launcher.ps1 -Mode status|deps|packs|logs` prints to the console without opening the window
 > (useful over SSH/CI). Note that output from `-Mode` is **invisible** when you launch the `-noConsole` GUI exe.
 
-A fuller troubleshooting table lives in `维护手册.md` §7.1 (*Chinese*).
+A fuller troubleshooting table lives in [`MAINTENANCE.en.md`](MAINTENANCE.en.md) §7.1.

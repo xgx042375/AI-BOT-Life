@@ -67,7 +67,7 @@ $cfgFile = "$root\data\launcher.json"
 # ---------------- 关于页常量（2026-09-12 UI 改版：docs\启动器UI规划.md §4） ----------------
 # 纪律：**绝不显示编造的署名**。未填 → 界面显示"（未设置）"，这本身即提醒。
 #   双重署名：FRAMEWORK_AUTHOR=本人署名（A6 已裁决）；SOURCE_URL=本仓地址（A1 已裁决全开源 AGPL-3.0）。
-$script:LAUNCHER_VERSION = "3.9.86"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
+$script:LAUNCHER_VERSION = "3.9.87"   # 启动器自身版本（改 UI 即升；重编译 exe 时用同一值）
 $script:FRAMEWORK_AUTHOR = "@晓咕咕Max"  # 框架作者（双重署名之"框架作者"位）；2026-09-12 A6 裁决
 $script:SOURCE_URL       = "https://github.com/xgx042375/AI-BOT-Life"   # 本仓地址（A1 全开源已裁决；公开仓已建，填 URL 即生效）
 
@@ -260,19 +260,63 @@ function Get-ThinkModeState {
 # Tag 决定 .env 的 LLM_PROVIDER（仍是 local / openai_compat 二值，core/llm.py 语义不变）：
 # 只有「本地引擎」是 local；其余全部 OpenAI 兼容端点。url="" 表示该项不指定地址（三格留原值/待填）。
 # 协议边界：本项目不写协议转换代码——原生 Anthropic / Gemini 请在本机跑协议代理，把代理 URL 填到这里。
+#
+# ★★ 型号名是有保质期的（2026-09-12 用户指出：DeepSeek 早已不用 `deepseek-chat`，现行无版本号写法
+#    是 `deepseek-flash`＝V4.1 Flash）。这张表因此采用**两条策略**，别再往里塞"看着像对的"型号名：
+#      ① 预设**只保证端点地址正确**，另给一个"此刻有效"的型号作起点（拿不准的**一律留空**）；
+#      ② 型号由界面上的「拉取型号」按钮按端点**实时取**（OpenAI 兼容的 GET {url}/models）——
+#         模型清单归服务商维护，启动器不维护一张必然过期的表。
+#    维护约定：改这里的型号名必须写日期 + 依据（官方文档/服务端 /models 实测），否则半年后没人敢动。
 function Get-ProviderPresets {
     $p = @{}
-    $p["本地引擎（local · llama-server）"] = @{ tag = "local";         url = "http://127.0.0.1:11434/v1";                        model = "" }
-    $p["OpenAI 兼容（通用）"]                  = @{ tag = "openai_compat"; url = "";                                                    model = "" }
-    $p["DeepSeek"]                                                          = @{ tag = "openai_compat"; url = "https://api.deepseek.com/v1";                    model = "deepseek-chat" }
-    $p["阿里云百炼 DashScope（兼容模式）"] = @{ tag = "openai_compat"; url = "https://dashscope.aliyuncs.com/compatible-mode/v1"; model = "qwen-plus" }
-    $p["Ollama"]                                                            = @{ tag = "openai_compat"; url = "http://127.0.0.1:11434/v1";                    model = "" }
-    $p["vLLM / LM Studio（自建）"]                      = @{ tag = "openai_compat"; url = "";                                                    model = "" }
-    $p["OpenRouter"]                                                        = @{ tag = "openai_compat"; url = "https://openrouter.ai/api/v1";                 model = "" }
-    $p["智谱 GLM"]                                                = @{ tag = "openai_compat"; url = "https://open.bigmodel.cn/api/paas/v4";          model = "glm-4-plus" }
-    $p["Moonshot Kimi"]                                                     = @{ tag = "openai_compat"; url = "https://api.moonshot.cn/v1";                    model = "moonshot-v1-8k" }
-    $p["自定义 / 经协议代理"]        = @{ tag = "openai_compat"; url = "";                                                    model = "" }
+    $p["本地引擎（local · llama-server）"] = @{ tag = "local"; url = "http://127.0.0.1:11434/v1"; model = ""
+        note = "本机 llama-server：型号名随便（引擎只加载一个 gguf）；也点「拉取型号」看它在服务哪个名字" }
+    $p["OpenAI 兼容（通用）"] = @{ tag = "openai_compat"; url = ""; model = ""
+        note = "任何 OpenAI 兼容端点；型号名照服务商文档填，或填好 URL+Key 后点「拉取型号」" }
+    $p["DeepSeek"] = @{ tag = "openai_compat"; url = "https://api.deepseek.com/v1"; model = "deepseek-flash"
+        note = "现行无版本号写法 = deepseek-flash（V4.1 Flash，2026-09-12 核实）；更高档位/思考档按官方文档与 LLM_THINKING_PARAM 定" }
+    $p["阿里云百炼 DashScope（兼容模式）"] = @{ tag = "openai_compat"; url = "https://dashscope.aliyuncs.com/compatible-mode/v1"; model = ""
+        note = "qwen 系列档位更迭快，故**不预填**型号名：填好 Key 后点「拉取型号」现取（见官方模型列表）" }
+    $p["Ollama"] = @{ tag = "openai_compat"; url = "http://127.0.0.1:11434/v1"; model = ""
+        note = "本机 Ollama：型号 = 你用 ollama pull 过的名字，点「拉取型号」能列出来" }
+    $p["vLLM / LM Studio（自建）"] = @{ tag = "openai_compat"; url = ""; model = ""
+        note = "自建端点：URL 形如 http://<主机>:<端口>/v1；型号名以自建服务的 /models 为准" }
+    $p["OpenRouter"] = @{ tag = "openai_compat"; url = "https://openrouter.ai/api/v1"; model = ""
+        note = "型号名形如 vendor/model（如 deepseek/deepseek-flash），点「拉取型号」现取最稳" }
+    $p["智谱 GLM"] = @{ tag = "openai_compat"; url = "https://open.bigmodel.cn/api/paas/v4"; model = ""
+        note = "GLM 档位更迭快，故**不预填**型号名：点「拉取型号」现取" }
+    $p["Moonshot Kimi"] = @{ tag = "openai_compat"; url = "https://api.moonshot.cn/v1"; model = ""
+        note = "Kimi 型号名更迭快（kimi-k2 系列等），故**不预填**：点「拉取型号」现取" }
+    $p["自定义 / 经协议代理"] = @{ tag = "openai_compat"; url = ""; model = ""
+        note = "原生 Anthropic / Gemini 请在本机跑协议代理，把代理地址与型号填这里" }
     return ,$p
+}
+function Get-ModelIds {
+    # 按当前三格里的 URL+Key，向端点要**模型清单**（OpenAI 兼容 GET {base}/models）。
+    # 为什么做这个：预设里的型号名会过期（用户实测：deepseek-chat 早没了），
+    # 而"清单"本来就是服务商的事实——让用户一键现取，比在启动器里维护一张表可靠。
+    # 返回 @{ ok=bool; ids=@(); err="" }，不抛异常（界面要好文案，不要红栈）。
+    $res = @{ ok = $false; ids = @(); err = "" }
+    try {
+        $u = "$($window.FindName('TxtApiUrl').Text)".Trim()
+        $k = "$($window.FindName('TxtApiKey').Text)".Trim()
+        if (-not $u) { $res.err = "先把『接口地址 URL』填上"; return $res }
+        $url = $u.TrimEnd("/") + "/models"
+        $hdr = @{}
+        if ($k) { $hdr["Authorization"] = "Bearer $k" }
+        $j = Invoke-RestMethod -Uri $url -Headers $hdr -TimeoutSec 12 -ErrorAction Stop
+        $ids = @()
+        foreach ($it in @($j.data)) { if ($it -and $it.id) { $ids += [string]$it.id } }
+        if (-not $ids.Count) {
+            # 有些端点把清单放在别的键（或返回裸数组）：退一步全树找 id 字段，仍取不到就算失败
+            foreach ($it in @($j)) { if ($it -and $it.id) { $ids += [string]$it.id } }
+        }
+        if (-not $ids.Count) { $res.err = "端点返回里没有型号清单（data[].id）——该端点可能不支持 GET /models"; return $res }
+        $res.ok = $true; $res.ids = @($ids | Sort-Object -Unique)
+    } catch {
+        $res.err = "拉取失败：" + $_.Exception.Message
+    }
+    return $res
 }
 function Get-ProviderPresetNames {
     return @(
@@ -1157,7 +1201,12 @@ function Get-OwnerPersona {
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <TextBlock Text="模型名" Width="90" FontSize="12" Foreground="#A9B0BA" VerticalAlignment="Center"/>
                 <TextBox x:Name="TxtModel" Width="330" Height="24" FontSize="11" VerticalContentAlignment="Center"/>
+                <!-- 2026-09-12：型号名会过期（DeepSeek 的 deepseek-chat 早没了）——所以别靠预设里那张表，
+                     直接向端点要清单（OpenAI 兼容 GET {url}/models）。拉回来进右边下拉，选中即写入模型名。 -->
+                <Button x:Name="BtnFetchModels" Content="拉取型号" FontSize="11" Width="80" Height="24" Margin="8,0,0,0" Style="{StaticResource CutBtn}" Foreground="#0B0D10"/>
+                <ComboBox x:Name="CmbModels" Width="220" Height="24" Margin="8,0,0,0" FontSize="11" VerticalContentAlignment="Center"/>
               </StackPanel>
+              <TextBlock x:Name="txtModelNote" FontSize="10" Foreground="#6A7076" TextWrapping="Wrap" MaxWidth="520" Margin="90,4,0,0"/>
 
               <!-- 2026-09-12 T5.1：身份区（写 qq-bot\.env 的 SUPERUSERS / OWNER_NICKNAME） -->
               <TextBlock Text="身份" FontSize="13" FontWeight="SemiBold" Foreground="#E6E1D4" Margin="0,24,0,0"/>
@@ -2069,6 +2118,13 @@ function Refresh-Cfg {
             foreach ($it in @($cth.Items)) { if ([string]$it.Tag -eq $want) { $cth.SelectedItem = $it; $hitT = $true; break } }
             if (-not $hitT -and $cth.Items.Count -gt 0) { $cth.SelectedIndex = 0 }
         }
+        # 模型名行的常驻说明（2026-09-12）：预设里的型号名会过期，界面必须自己说清"去哪儿拿现的"。
+        $mnote = $window.FindName("txtModelNote")
+        if ($mnote) {
+            $mnow = "$(Get-EnvValue 'LLM_MODEL')"
+            $mnote.Text = "型号名由服务商维护、会过期（例：DeepSeek 早年的 deepseek-chat 已停用，现行为 deepseek-flash）。" +
+                          "填好『接口地址 URL』+『API Key』后点「拉取型号」按端点现取；当前保存值：" + $(if ($mnow) { $mnow } else { "（未设置＝本地引擎默认）" })
+        }
     } catch {}
 }
 # ---------------- 插件管理（2026-09-11 热修六：已装目录 + 快速安装通道） ----------------
@@ -2230,6 +2286,13 @@ $script:wv = $null
 function BindClick($name, $scriptBlock) {
     $b = $window.FindName($name)
     if ($b) { $b.Add_Click($scriptBlock) }
+}
+function BindSelect($name, $scriptBlock) {
+    # 下拉/列表类控件的绑定口（2026-09-12）：`Add_Click` 只存在于 ButtonBase 派生类上——
+    # 给 ComboBox 用 BindClick 会**静默无效**（无 Click 事件 → 抛异常被吞 → 选中什么都不发生），
+    # 正是本项目最恨的那类故障。ComboBox/ListBox 要的是 SelectionChanged。
+    $b = $window.FindName($name)
+    if ($b) { $b.Add_SelectionChanged($scriptBlock) }
 }
 function WEBLOG($msg) {
     # 2026-09-12 修：原先纯追加、**无任何上限**——实测已涨到 9.3 MB 且每次操作都在长。
@@ -2647,11 +2710,39 @@ BindClick "BtnApplyPreset" ({
         $p = $presets[$nm]
         if ($p["url"]) { $window.FindName("TxtApiUrl").Text = [string]$p["url"] }
         if ($p["model"]) { $window.FindName("TxtModel").Text = [string]$p["model"] }
+        # 预设说明落到模型名下面那行（含"型号名会变、点拉取型号现取"的口径）
+        $nt = $window.FindName("txtModelNote")
+        if ($nt) { $nt.Text = "$([string]$p["note"])" }
         $im3 = $window.FindName("txtCfgMsg")
         $msg = "已套用预设：" + $nm
-        if ($p["url"]) { $msg += "（URL 已填，模型名可改）" } else { $msg += "（该项不指定地址，请自填接口地址 URL）" }
-        $msg += "。别忘了点「保存 SAVE」写入 .env。"
+        if ($p["url"]) { $msg += "（URL 已填" + $(if ($p["model"]) { "、型号已给一个起点" } else { "、**型号留空**" }) + "）" } else { $msg += "（该项不指定地址，请自填接口地址 URL）" }
+        $msg += "。型号名会过期：填好 Key 后点「拉取型号」按端点现取最稳；别忘了「保存 SAVE」写入 .env。"
         $im3.Text = $msg
+    } catch {}
+})
+# 「拉取型号」（2026-09-12）：按 URL+Key 向端点要模型清单，填进下拉。选中即写入模型名。
+BindClick "BtnFetchModels" ({
+    try {
+        $r = Get-ModelIds
+        $cb = $window.FindName("CmbModels")
+        $im3 = $window.FindName("txtCfgMsg")
+        if (-not $r.ok) {
+            if ($im3) { $im3.Text = [string]$r.err }
+            return
+        }
+        if ($cb) {
+            $cb.Items.Clear()
+            foreach ($id in $r.ids) { $cb.Items.Add($id) | Out-Null }
+            if ($cb.Items.Count -gt 0) { $cb.SelectedIndex = 0 }
+        }
+        if ($im3) { $im3.Text = "已取到 $($r.ids.Count) 个型号（下拉里选一个即写入模型名）：" + (($r.ids | Select-Object -First 6) -join "、") + $(if ($r.ids.Count -gt 6) { " …" } else { "" }) }
+    } catch {}
+})
+# 下拉选中 → 写入模型名（单一事实：下拉只是"取回来的清单"，最终保存的仍是 TxtModel 的值）
+BindSelect "CmbModels" ({
+    try {
+        $cb = $window.FindName("CmbModels")
+        if ($cb -and $cb.SelectedItem) { $window.FindName("TxtModel").Text = [string]$cb.SelectedItem }
     } catch {}
 })
 BindClick "BtnRefreshLog" ({ Refresh-Log })
