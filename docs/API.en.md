@@ -485,6 +485,15 @@ Everything else (what to say, how to do it, whether to attach an image, whether 
 installing data packs carries zero risk.
 Once enabled, tool packs execute inside an **isolated AppContainer child process** (work item S4, feasibility already measured in practice).
 
+> ⚠️ **Current implementation boundary (verified 2026-09-12)**: the sandbox and permissions above are **not implemented
+> yet** — `core/packs.py` does **not** read `permissions` (zero references repo-wide); `load_tools()` only loads the
+> entry named by `tools[].entry`. In other words, **declaring `permissions` today is "documentation for humans and
+> future alignment", it does not actually restrict you**; real enforcement arrives with S4
+> (`docs/S4-沙盒与声明式权限-spec-2026-09-12.md`). This boundary is spelled out here because "the doc promises it,
+> the code does not have it" is more dangerous than saying nothing — a third-party author would assume they are
+> protected. **Declare it honestly anyway**: when S4 lands, packs that never declared anything will lose capability
+> immediately rather than being silently waved through.
+
 **Permission vocabulary** (`permissions`, default = `[]` = zero capability):
 
 | Capability word | Meaning | Enforcement |
